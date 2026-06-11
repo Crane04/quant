@@ -9,8 +9,11 @@ import {
   FileText,
   Loader2,
   Filter,
+  Pencil,
+  Save,
+  X,
 } from "lucide-react";
-import { fetchDocuments, deleteDocument } from "../services/api";
+import { fetchDocuments, deleteDocument, updateDocument } from "../services/api";
 import { PDFDoc } from "../types";
 
 const LEVELS = ["", "100", "200", "300", "400", "500"];
@@ -27,6 +30,8 @@ export default function DocumentsPage() {
   const [levelFilter, setLevelFilter] = useState("");
   const [semesterFilter, setSemesterFilter] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["documents", search, levelFilter, semesterFilter],
@@ -48,7 +53,46 @@ export default function DocumentsPage() {
     onError: () => toast.error("Delete failed"),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) =>
+      updateDocument(id, { title }),
+    onSuccess: () => {
+      toast.success("Document updated");
+      qc.invalidateQueries({ queryKey: ["documents"] });
+      setEditingDocId(null);
+      setEditingTitle("");
+    },
+    onError: () => toast.error("Update failed"),
+  });
+
   const docs = data?.documents || [];
+
+  const startEditing = (doc: PDFDoc) => {
+    setConfirmDelete(null);
+    setEditingDocId(doc._id);
+    setEditingTitle(doc.title);
+  };
+
+  const cancelEditing = () => {
+    setEditingDocId(null);
+    setEditingTitle("");
+  };
+
+  const saveTitle = (doc: PDFDoc) => {
+    const title = editingTitle.trim();
+
+    if (!title) {
+      toast.error("Document name is required");
+      return;
+    }
+
+    if (title === doc.title) {
+      cancelEditing();
+      return;
+    }
+
+    updateMutation.mutate({ id: doc._id, title });
+  };
 
   return (
     <div className="p-8">
@@ -131,17 +175,58 @@ export default function DocumentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
-              {docs.map((doc: PDFDoc) => (
+              {docs.map((doc: PDFDoc) => {
+                const isEditing = editingDocId === doc._id;
+
+                return (
                 <tr key={doc._id} className="hover:bg-zinc-800/30 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
                         <FileText size={15} className="text-red-400" />
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-zinc-100 max-w-xs truncate">
-                          {doc.title}
-                        </p>
+                      <div className="min-w-0 flex-1">
+                        {isEditing ? (
+                          <div className="flex items-center gap-2 max-w-md">
+                            <input
+                              value={editingTitle}
+                              onChange={(event) => setEditingTitle(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") saveTitle(doc);
+                                if (event.key === "Escape") cancelEditing();
+                              }}
+                              className="input h-9"
+                              autoFocus
+                              aria-label="Document name"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => saveTitle(doc)}
+                              disabled={updateMutation.isPending}
+                              className="btn-primary h-9 px-3"
+                              title="Save name"
+                            >
+                              {updateMutation.isPending ? (
+                                <Loader2 size={15} className="animate-spin" />
+                              ) : (
+                                <Save size={15} />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEditing}
+                              disabled={updateMutation.isPending}
+                              className="btn-ghost h-9 px-3"
+                              title="Cancel"
+                            >
+                              <X size={15} />
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="text-sm font-medium text-zinc-100 max-w-xs truncate">
+                            {doc.title}
+                          </p>
+                        )}
                         {doc.tags.length > 0 && (
                           <div className="flex gap-1 mt-0.5">
                             {doc.tags.slice(0, 3).map((tag) => (
@@ -193,6 +278,16 @@ export default function DocumentsPage() {
                         <ExternalLink size={15} />
                       </a>
 
+                      <button
+                        type="button"
+                        onClick={() => startEditing(doc)}
+                        disabled={isEditing || updateMutation.isPending}
+                        className="btn-ghost p-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Rename document"
+                      >
+                        <Pencil size={15} />
+                      </button>
+
                       {confirmDelete === doc._id ? (
                         <div className="flex items-center gap-1">
                           <button
@@ -221,7 +316,8 @@ export default function DocumentsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

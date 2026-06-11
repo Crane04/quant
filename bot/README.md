@@ -35,6 +35,11 @@ npm run dev
 | `INTERNAL_API_KEY` | Legacy fallback secret if `JWT_SECRET` is not set |
 | `GROQ_API_KEY` | Optional Groq key for AI intent detection |
 | `GROQ_MODEL` | Optional Groq chat model; defaults to `llama-3.3-70b-versatile` |
+| `GOOGLE_DRIVE_API_KEY` | Optional Google Drive API key for bulk import from a public/shared folder |
+| `GOOGLE_DRIVE_ACCESS_TOKEN` | Optional Google Drive OAuth access token for private folder import |
+| `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Optional root Drive folder for import; defaults to the Quant materials folder |
+| `DRIVE_IMPORT_FACULTY` | Optional faculty value used by Drive imports |
+| `DRIVE_IMPORT_DEPARTMENT` | Optional department value used by Drive imports |
 
 ## Twilio Webhook
 
@@ -72,6 +77,23 @@ Document and admin routes require `Authorization: Bearer <token>`.
 | `POST` | `/api/v1/admins` | Create admin (super admin only) |
 | `PATCH` | `/api/v1/admins/:id` | Update admin (super admin only) |
 | `DELETE` | `/api/v1/admins/:id` | Delete admin (super admin only) |
+
+## Google Drive Bulk Import
+
+The importer recursively scans the Drive folder, finds PDFs, infers metadata from folder/file names, uploads the PDFs to Cloudinary, and creates MongoDB document records. It skips existing records by Drive file ID or matching title/course/level/semester.
+
+Set either `GOOGLE_DRIVE_API_KEY` for a public/shared folder or `GOOGLE_DRIVE_ACCESS_TOKEN` for a private folder, then run:
+
+```bash
+npm run import:drive -- --dry-run
+npm run import:drive
+```
+
+You can override the folder:
+
+```bash
+npm run import:drive -- --folder=1pAr6_0bQHPUTnj1FEDJjeQa-WlB0Wykm
+```
 
 ## WhatsApp Bot Commands
 

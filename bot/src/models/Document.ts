@@ -11,6 +11,7 @@ export interface IDocument extends Document {
   tags: string[]; // e.g. ["week1", "thermodynamics", "lecture"]
   cloudinaryUrl: string;
   cloudinaryPublicId: string;
+  sourceDriveFileId?: string;
   fileSize: number; // bytes
   uploadedAt: Date;
   downloadCount: number;
@@ -32,6 +33,7 @@ const DocumentSchema = new Schema<IDocument>(
     tags: [{ type: String, lowercase: true, trim: true }],
     cloudinaryUrl: { type: String, required: true },
     cloudinaryPublicId: { type: String, required: true },
+    sourceDriveFileId: { type: String, trim: true },
     fileSize: { type: Number, default: 0 },
     uploadedAt: { type: Date, default: Date.now },
     downloadCount: { type: Number, default: 0 },
@@ -48,6 +50,7 @@ DocumentSchema.index({
 });
 
 DocumentSchema.index({ courseCode: 1, level: 1 });
+DocumentSchema.index({ sourceDriveFileId: 1 }, { unique: true, sparse: true });
 
 export const PDFDocument = mongoose.model<IDocument>(
   "PDFDocument",

@@ -21,6 +21,20 @@ type CreateDocumentInput = {
   file: Express.Multer.File;
 };
 
+type CreateDocumentFromBufferInput = {
+  title: string;
+  courseCode: string;
+  courseName: string;
+  faculty?: string;
+  department: string;
+  level: string;
+  semester: string;
+  tags?: string;
+  buffer: Buffer;
+  fileSize: number;
+  sourceDriveFileId?: string;
+};
+
 const editableDocumentFields = [
   "title",
   "courseCode",
@@ -75,7 +89,34 @@ export const createDocumentWithPdf = async ({
   tags,
   file,
 }: CreateDocumentInput): Promise<IDocument> => {
-  const uploadResult = await uploadPdf(file.buffer, courseCode);
+  return createDocumentFromBuffer({
+    title,
+    courseCode,
+    courseName,
+    faculty,
+    department,
+    level,
+    semester,
+    tags,
+    buffer: file.buffer,
+    fileSize: file.size,
+  });
+};
+
+export const createDocumentFromBuffer = async ({
+  title,
+  courseCode,
+  courseName,
+  faculty,
+  department,
+  level,
+  semester,
+  tags,
+  buffer,
+  fileSize,
+  sourceDriveFileId,
+}: CreateDocumentFromBufferInput): Promise<IDocument> => {
+  const uploadResult = await uploadPdf(buffer, courseCode);
 
   return PDFDocument.create({
     title,
@@ -88,7 +129,8 @@ export const createDocumentWithPdf = async ({
     tags: parseTags(tags),
     cloudinaryUrl: uploadResult.secure_url,
     cloudinaryPublicId: uploadResult.public_id,
-    fileSize: file.size,
+    sourceDriveFileId,
+    fileSize,
   });
 };
 
