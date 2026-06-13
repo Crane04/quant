@@ -33,6 +33,52 @@ export interface DocumentsResponse {
   documents: PDFDoc[];
 }
 
+export interface StudentAssignment {
+  _id?: string;
+  courseCode: string;
+  description: string;
+  dueDate: string;
+  reminderSent: boolean;
+  createdAt: string;
+}
+
+export interface Student {
+  _id: string;
+  phoneNumber: string;
+  name: string;
+  school?: string;
+  campus?: string;
+  faculty?: string;
+  matricNumber?: string;
+  department?: string;
+  level?: "100" | "200" | "300" | "400" | "500";
+  semester?: "first" | "second";
+  currentCgpa?: number;
+  targetCgpa?: number;
+  assignments?: StudentAssignment[];
+  registeredAt: string;
+  lastActive: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StudentsResponse {
+  success: boolean;
+  count: number;
+  students: Student[];
+}
+
+export type StudentUpdatePayload = Partial<{
+  name: string;
+  school: string;
+  campus: string;
+  faculty: string;
+  department: string;
+  level: string;
+  currentCgpa: number | string;
+  targetCgpa: number | string;
+}>;
+
 export type AdminRole = "super_admin" | "admin";
 
 export interface AdminUser {

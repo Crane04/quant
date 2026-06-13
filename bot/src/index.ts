@@ -6,6 +6,7 @@ import { connectDB } from "./config/db";
 import apiRouter from "./routes/api";
 import webhookRouter from "./routes/webhook";
 import { ensureDefaultAdmin } from "./services/adminService";
+import { startAssignmentReminderScheduler } from "./services/reminderService";
 import { sendSuccess } from "./utils/apiResponse";
 
 const app = express();
@@ -31,6 +32,7 @@ app.get("/health", (_req, res) => {
 const start = async () => {
   await connectDB();
   await ensureDefaultAdmin();
+  startAssignmentReminderScheduler();
   app.listen(PORT, () => {
     console.log(`🚀 Quant Bot running on port ${PORT}`);
     console.log(`   Webhook: POST /webhook/whatsapp`);

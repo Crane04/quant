@@ -18,10 +18,6 @@ const unsupportedTerms = [
   "unregister",
   "delete account",
   "remove me",
-  "registration",
-  "register me",
-  "change my details",
-  "update my profile",
   "school fees",
   "admission",
   "admissions",
@@ -63,6 +59,10 @@ export const detectLocalIntent = (message: string): AiIntent | null => {
   if (getPdfPrefix) {
     const query = stripPrefix(message, getPdfPrefix).replace(/[?!.,]+$/g, "");
     return query ? { intent: "find_document", query } : { intent: "find_document" };
+  }
+
+  if (["get course pdf", "get pdf", "pdf", "course pdf"].includes(input)) {
+    return { intent: "find_document" };
   }
 
   const selectionNumber = Number.parseInt(input, 10);

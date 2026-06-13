@@ -17,7 +17,7 @@ export const sendPDF = async (
   doc: IDocument
 ): Promise<void> => {
   // Send a text first so the student knows what's coming
-  await sendText(to, `📤 Sending *${doc.title}*\nCourse: *${doc.courseCode}*`);
+  await sendText(to, `Downloading ${doc.courseCode} ${doc.title}...`);
 
   // Send the actual PDF via Cloudinary URL
   await client.messages.create({

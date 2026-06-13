@@ -40,6 +40,7 @@ npm run dev
 | `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Optional root Drive folder for import; defaults to the Quant materials folder |
 | `DRIVE_IMPORT_FACULTY` | Optional faculty value used by Drive imports |
 | `DRIVE_IMPORT_DEPARTMENT` | Optional department value used by Drive imports |
+| `DRIVE_IMPORT_MAX_FILE_SIZE_BYTES` | Optional max PDF size to import; defaults to Cloudinary's 10 MB free-plan limit |
 
 ## Twilio Webhook
 

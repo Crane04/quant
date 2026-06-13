@@ -8,6 +8,7 @@ import {
 } from "../controllers/documentController";
 import { addAdmin, editAdmin, getAdmins, removeAdmin } from "../controllers/adminController";
 import { getCurrentAdmin, login } from "../controllers/authController";
+import { deleteStudent, getStudent, listStudents, updateStudent } from "../controllers/studentController";
 import { requireAuth, requireSuperAdmin } from "../middlewares/requireAuth";
 import { upload } from "../middlewares/upload";
 
@@ -24,6 +25,11 @@ router.get("/documents", listDocuments);
 router.get("/documents/:id", getDocument);
 router.patch("/documents/:id", updateDocument);
 router.delete("/documents/:id", deleteDocument);
+
+router.get("/students", listStudents);
+router.get("/students/:id", getStudent);
+router.patch("/students/:id", updateStudent);
+router.delete("/students/:id", deleteStudent);
 
 router.get("/admins", requireSuperAdmin, getAdmins);
 router.post("/admins", requireSuperAdmin, addAdmin);

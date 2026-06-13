@@ -1,18 +1,25 @@
 import { PDFDocument, IDocument } from "../models/Document";
 
 export const findByCourseCode = async (
-  query: string
+  query: string,
+  filters: { department?: string; level?: string } = {}
 ): Promise<IDocument[]> => {
   const normalized = query.trim().toUpperCase().replace(/\s+/g, " ");
+  const profileFilter: Record<string, unknown> = {};
+
+  if (filters.department) profileFilter.department = { $regex: filters.department, $options: "i" };
+  if (filters.level) profileFilter.level = filters.level;
 
   // Try exact course code match first
   let docs = await PDFDocument.find({
+    ...profileFilter,
     courseCode: { $regex: new RegExp(normalized, "i") },
   }).sort({ title: 1 });
 
   // Fall back to course name match
   if (docs.length === 0) {
     docs = await PDFDocument.find({
+      ...profileFilter,
       courseName: { $regex: new RegExp(query.trim(), "i") },
     }).sort({ title: 1 });
   }

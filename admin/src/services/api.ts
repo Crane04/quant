@@ -6,6 +6,9 @@ import {
   DocumentsResponse,
   LoginResponse,
   PDFDoc,
+  Student,
+  StudentsResponse,
+  StudentUpdatePayload,
   UploadPayload,
 } from "../types";
 
@@ -81,6 +84,30 @@ export const updateDocument = async (
 ): Promise<PDFDoc> => {
   const { data } = await api.patch(`/documents/${id}`, updates);
   return data.document;
+};
+
+export const fetchStudents = async (filters?: {
+  search?: string;
+  school?: string;
+  campus?: string;
+  faculty?: string;
+  department?: string;
+  level?: string;
+}): Promise<StudentsResponse> => {
+  const { data } = await api.get("/students", { params: filters });
+  return data;
+};
+
+export const updateStudent = async (
+  id: string,
+  updates: StudentUpdatePayload
+): Promise<Student> => {
+  const { data } = await api.patch(`/students/${id}`, updates);
+  return data.student;
+};
+
+export const deleteStudent = async (id: string): Promise<void> => {
+  await api.delete(`/students/${id}`);
 };
 
 export const fetchAdmins = async (): Promise<AdminsResponse> => {

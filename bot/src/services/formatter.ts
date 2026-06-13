@@ -1,4 +1,5 @@
 import { IDocument } from "../models/Document";
+import { IStudent } from "../models/Student";
 
 export const formatDocumentList = (docs: IDocument[]): string => {
   if (docs.length === 0) {
@@ -24,19 +25,46 @@ export const formatDocumentList = (docs: IDocument[]): string => {
 
 export const formatWelcome = (): string => {
   return (
-    `👋 Welcome to *Quant App*!\n\n` +
-    `Your academic material support system.\n\n` +
-    `Type *menu* to see what you can do.`
+    `Hi. I am Quant. I organize your academic workflow and instantly retrieve your course materials.\n\n` +
+    `Tap the button below to set up your student profile.\n\n` +
+    `[Register Profile]`
   );
+};
+
+export const formatReturningWelcome = (): string => {
+  return `Hi. I am Quant. Select an action from the menu below.`;
 };
 
 export const formatMenu = (): string => {
   return (
     `📋 *Main Menu*\n\n` +
-    `1️⃣  Get PDF\n` +
-    `2️⃣  Search material\n\n` +
-    `Reply with a number or option name.\n` +
-    `e.g. _Get PDF_ or _1_`
+    `1. Get Course PDF\n` +
+    `2. View Assignments\n` +
+    `3. Track CGPA\n` +
+    `4. Edit Profile\n` +
+    `5. Support/Help\n\n` +
+    `Reply with a number or option name.`
+  );
+};
+
+export const formatRegistrationComplete = (student: IStudent): string => {
+  return (
+    `Registration complete. You are registered as a ${student.level}L ${student.department} student from ${student.school}.\n\n` +
+    `Select an action from the menu below.\n\n` +
+    `[Main Menu]`
+  );
+};
+
+export const formatProfileSummary = (student: IStudent): string => {
+  return (
+    `*Student Profile*\n\n` +
+    `Name: ${student.name}\n` +
+    `School: ${student.school}\n` +
+    `Campus: ${student.campus}\n` +
+    `Faculty: ${student.faculty}\n` +
+    `Department: ${student.department}\n` +
+    `Level: ${student.level}L\n` +
+    `Current CGPA: ${student.currentCgpa?.toFixed(2) || "Not set"}`
   );
 };
 
@@ -53,11 +81,7 @@ export const formatNotFound = (): string => {
 export const formatCoursePrompt = (): string => {
   return (
     `📖 *Get PDF*\n\n` +
-    `Send me the course code or name.\n\n` +
-    `Examples:\n` +
-    `• _ENG 201_\n` +
-    `• _Fluid Mechanics_\n` +
-    `• _CHE 301_`
+    `Reply with the course code you need. (e.g., ECE 316).`
   );
 };
 
@@ -80,19 +104,26 @@ export const formatHelp = (): string => {
     `🆘 *Help*\n\n` +
     `Commands you can use:\n\n` +
     `• *menu* — Main menu\n` +
-    `• *get pdf* — Browse PDFs by course\n` +
-    `• *search <term>* — Search all materials\n` +
-    `• *help* — This message\n\n` +
-    `For issues, contact your administrator.`
+    `• *register profile* — Set up your student profile\n` +
+    `• *get course pdf* — Access course materials\n` +
+    `• *view assignments* — See active deadlines\n` +
+    `• *track cgpa* — Check standing and goals\n` +
+    `• *edit profile* — Update your academic data\n\n` +
+    `[Talk to Support]`
   );
 };
 
 export const formatUnsupportedRequest = (): string => {
   return (
-    `I can't help with that yet.\n\n` +
-    `For now, I can help you:\n` +
-    `• Get PDFs by course code or course name\n` +
-    `• Search materials by topic or keyword\n\n` +
-    `Type *menu* to continue.`
+    `I'm sorry, I didn't get that.\n\n` +
+    `Tap [Main Menu] to restart or [Talk to Support] to connect with a representative.`
   );
+};
+
+export const formatProfilePrompt = (field: string, hint?: string): string => {
+  return `${field}${hint ? `\n${hint}` : ""}`;
+};
+
+export const formatFeedbackPrompt = (): string => {
+  return `Was this helpful? [Yes] [No]`;
 };

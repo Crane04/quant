@@ -37,6 +37,18 @@ const getArg = (name: string): string | undefined => {
 
 const hasFlag = (name: string): boolean => process.argv.includes(`--${name}`);
 
+const formatError = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+
+  if (typeof error === "string") return error;
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+};
+
 const folderId =
   getArg("folder") || process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || DEFAULT_ROOT_FOLDER_ID;
 const dryRun = hasFlag("dry-run") || process.env.DRIVE_IMPORT_DRY_RUN === "true";
@@ -44,6 +56,7 @@ const accessToken = process.env.GOOGLE_DRIVE_ACCESS_TOKEN;
 const apiKey = process.env.GOOGLE_DRIVE_API_KEY;
 const defaultFaculty = process.env.DRIVE_IMPORT_FACULTY || "Engineering";
 const defaultDepartment = process.env.DRIVE_IMPORT_DEPARTMENT || "Electrical and Computer Engineering";
+const maxFileSizeBytes = Number(process.env.DRIVE_IMPORT_MAX_FILE_SIZE_BYTES || 10 * 1024 * 1024);
 
 const driveFetch = async (url: URL): Promise<Response> => {
   if (apiKey) url.searchParams.set("key", apiKey);
@@ -199,6 +212,16 @@ const importCandidate = async (candidate: ImportCandidate): Promise<"created" | 
 
   const buffer = await downloadPdf(candidate.id);
 
+  if (buffer.byteLength > maxFileSizeBytes) {
+    throw new Error(
+      `File is ${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB; current import limit is ${(
+        maxFileSizeBytes /
+        1024 /
+        1024
+      ).toFixed(1)} MB`
+    );
+  }
+
   await createDocumentFromBuffer({
     title: candidate.title,
     courseCode: candidate.courseCode,
@@ -249,8 +272,7 @@ const main = async (): Promise<void> => {
         console.log(`Skipped existing: ${label}`);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      console.error(`Failed: ${label} - ${message}`);
+      console.error(`Failed: ${label} - ${formatError(error)}`);
     }
   }
 
@@ -259,7 +281,7 @@ const main = async (): Promise<void> => {
 
 main()
   .catch((error) => {
-    console.error(error instanceof Error ? error.message : error);
+    console.error(formatError(error));
     process.exitCode = 1;
   })
   .finally(async () => {
