@@ -26,8 +26,9 @@ export const formatDocumentList = (docs: IDocument[]): string => {
 export const formatWelcome = (): string => {
   return (
     `Hi. I am Quant. I organize your academic workflow and instantly retrieve your course materials.\n\n` +
-    `Tap the button below to set up your student profile.\n\n` +
-    `[Register Profile]`
+    `Reply with a number:\n\n` +
+    `1. Register Profile\n` +
+    `2. Support/Help`
   );
 };
 
@@ -43,15 +44,14 @@ export const formatMenu = (): string => {
     `3. Track CGPA\n` +
     `4. Edit Profile\n` +
     `5. Support/Help\n\n` +
-    `Reply with a number or option name.`
+    `Reply with a number.`
   );
 };
 
 export const formatRegistrationComplete = (student: IStudent): string => {
   return (
     `Registration complete. You are registered as a ${student.level}L ${student.department} student from ${student.school}.\n\n` +
-    `Select an action from the menu below.\n\n` +
-    `[Main Menu]`
+    `Select an action from the menu below.`
   );
 };
 
@@ -102,21 +102,20 @@ export const formatSendingPDF = (doc: IDocument): string => {
 export const formatHelp = (): string => {
   return (
     `🆘 *Help*\n\n` +
-    `Commands you can use:\n\n` +
-    `• *menu* — Main menu\n` +
-    `• *register profile* — Set up your student profile\n` +
-    `• *get course pdf* — Access course materials\n` +
-    `• *view assignments* — See active deadlines\n` +
-    `• *track cgpa* — Check standing and goals\n` +
-    `• *edit profile* — Update your academic data\n\n` +
-    `[Talk to Support]`
+    `Reply *menu* anytime to return to the main menu.\n\n` +
+    `Main menu options:\n` +
+    `1. Get Course PDF\n` +
+    `2. View Assignments\n` +
+    `3. Track CGPA\n` +
+    `4. Edit Profile\n` +
+    `5. Support/Help`
   );
 };
 
 export const formatUnsupportedRequest = (): string => {
   return (
     `I'm sorry, I didn't get that.\n\n` +
-    `Tap [Main Menu] to restart or [Talk to Support] to connect with a representative.`
+    `Reply *menu* to restart or *5* to reach support.`
   );
 };
 
@@ -125,5 +124,5 @@ export const formatProfilePrompt = (field: string, hint?: string): string => {
 };
 
 export const formatFeedbackPrompt = (): string => {
-  return `Was this helpful? [Yes] [No]`;
+  return `Was this helpful?\n1. Yes\n2. No`;
 };

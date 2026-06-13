@@ -104,6 +104,11 @@ const completeProfileStep = async (
   await sendText(from, prompt);
 };
 
+const sendFeedbackPrompt = async (from: string): Promise<void> => {
+  setSession(from, "AWAITING_FEEDBACK");
+  await sendText(from, formatFeedbackPrompt());
+};
+
 const handleGlobalIntent = async (
   from: string,
   intent: AiIntent | null
@@ -238,6 +243,25 @@ export const processIncomingMessage = async (
     logInfo("Local intent not detected", { from: logPhone(from) });
   }
 
+  const studentForNumberedOnboarding = await getStudentByPhone(from);
+  const needsProfile =
+    session.state === "IDLE" && !isProfileComplete(studentForNumberedOnboarding);
+
+  if (needsProfile && input === "1") {
+    logInfo("Profile registration started", { from: logPhone(from), source: "numbered_onboarding" });
+    await startProfileRegistration(from);
+    return;
+  }
+
+  if (needsProfile && input === "2") {
+    clearSession(from);
+    await sendText(
+      from,
+      `A representative can help you here: ${process.env.SUPPORT_WHATSAPP_URL || "https://wa.me/2340000000000"}`
+    );
+    return;
+  }
+
   if (["register profile", "register", "set up profile", "setup profile"].includes(input)) {
     logInfo("Profile registration started", { from: logPhone(from) });
     await startProfileRegistration(from);
@@ -255,16 +279,6 @@ export const processIncomingMessage = async (
     await sendText(
       from,
       `A representative can help you here: ${process.env.SUPPORT_WHATSAPP_URL || "https://wa.me/2340000000000"}`
-    );
-    return;
-  }
-
-  if (["yes", "no"].includes(input)) {
-    await sendText(
-      from,
-      input === "yes"
-        ? "Glad I could help! Is there anything else you need?"
-        : "Sorry to hear that. Tap [Talk to Support] to share your feedback or let me know how I can improve."
     );
     return;
   }
@@ -293,6 +307,22 @@ export const processIncomingMessage = async (
   if (await handleGlobalIntent(from, intent)) return;
 
   switch (session.state) {
+    case "AWAITING_FEEDBACK": {
+      if (!["1", "2", "yes", "no"].includes(input)) {
+        await sendText(from, "Please reply with 1 for Yes or 2 for No.");
+        return;
+      }
+
+      clearSession(from);
+      await sendText(
+        from,
+        ["1", "yes"].includes(input)
+          ? "Glad I could help! Is there anything else you need?"
+          : "Sorry to hear that. Reply *5* from the main menu to reach support, or tell me how I can improve."
+      );
+      return;
+    }
+
     case "AWAITING_PROFILE_NAME": {
       await completeProfileStep(
         from,
@@ -418,9 +448,10 @@ export const processIncomingMessage = async (
           .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
 
         if (activeAssignments.length === 0) {
+          setSession(from, "AWAITING_ASSIGNMENT_EMPTY_CHOICE");
           await sendText(
             from,
-            `You haven't set any assignments or reminders yet.\n\n[Set Assignment/Reminder]`
+            `You haven't set any assignments or reminders yet.\n\nReply with a number:\n1. Set Assignment/Reminder\n2. Main Menu`
           );
           return;
         }
@@ -429,11 +460,11 @@ export const processIncomingMessage = async (
           (assignment) =>
             `${assignment.courseCode}: ${assignment.description} - Due: ${formatDate(assignment.dueDate)}.`
         );
+        setSession(from, "AWAITING_ASSIGNMENT_ACTION_CHOICE");
         await sendText(
           from,
-          `Here is your active workload:\n\n${lines.join("\n")}\n\nReply 'Remind me' to add a notification alert.`
+          `Here is your active workload:\n\n${lines.join("\n")}\n\nReply with a number:\n1. Keep reminder alerts on\n2. Main Menu`
         );
-        await sendText(from, formatFeedbackPrompt());
         return;
       }
 
@@ -449,7 +480,11 @@ export const processIncomingMessage = async (
       if (["3", "track cgpa", "cgpa"].includes(input)) {
         logInfo("Command branch selected", { from: logPhone(from), branch: "cgpa" });
         if (student.targetCgpa === undefined || student.targetCgpa === null) {
-          await sendText(from, `You haven't set a CGPA target yet.\n\n[Set Target]`);
+          setSession(from, "AWAITING_CGPA_EMPTY_CHOICE");
+          await sendText(
+            from,
+            `You haven't set a CGPA target yet.\n\nReply with a number:\n1. Set Target\n2. Main Menu`
+          );
           return;
         }
 
@@ -460,7 +495,7 @@ export const processIncomingMessage = async (
             `Status: You are currently ${Math.abs(gap).toFixed(2)} points ${gap > 0 ? "off your target" : "above your target"}.\n\n` +
             `Would you like to log a new CA score to update your projection?`
         );
-        await sendText(from, formatFeedbackPrompt());
+        await sendFeedbackPrompt(from);
         return;
       }
 
@@ -542,7 +577,45 @@ export const processIncomingMessage = async (
       await addStudentAssignment(from, assignment);
       clearSession(from);
       await sendText(from, "Success! Your assignment has been scheduled.");
-      await sendText(from, formatFeedbackPrompt());
+      await sendFeedbackPrompt(from);
+      return;
+    }
+
+    case "AWAITING_ASSIGNMENT_EMPTY_CHOICE": {
+      if (input === "1") {
+        setSession(from, "AWAITING_ASSIGNMENT_DETAILS");
+        await sendText(
+          from,
+          "Please provide the assignment description, due date (e.g., June 15), and the Course Code."
+        );
+        return;
+      }
+
+      if (input === "2") {
+        clearSession(from);
+        await sendText(from, formatMenu());
+        return;
+      }
+
+      await sendText(from, "Please reply with 1 to set an assignment/reminder or 2 for the main menu.");
+      return;
+    }
+
+    case "AWAITING_ASSIGNMENT_ACTION_CHOICE": {
+      if (input === "1") {
+        clearSession(from);
+        await sendText(from, "Reminder alerts are on. I will notify you 24 hours before active assignment deadlines.");
+        await sendFeedbackPrompt(from);
+        return;
+      }
+
+      if (input === "2") {
+        clearSession(from);
+        await sendText(from, formatMenu());
+        return;
+      }
+
+      await sendText(from, "Please reply with 1 to keep reminder alerts on or 2 for the main menu.");
       return;
     }
 
@@ -558,18 +631,35 @@ export const processIncomingMessage = async (
       const level = Number.parseInt(student?.level || "0", 10);
 
       if (currentCgpa <= 1.8 && targetCgpa > 4.5 && level >= 400) {
+        setSession(from, "AWAITING_CGPA_EMPTY_CHOICE");
         await sendText(
           from,
-          "Based on your current academic standing, this target may be challenging to reach. Let's look at a more achievable goal to keep you on track.\n\n[Set Target]"
+          "Based on your current academic standing, this target may be challenging to reach. Let's look at a more achievable goal to keep you on track.\n\nReply with a number:\n1. Set Target\n2. Main Menu"
         );
-        clearSession(from);
         return;
       }
 
       await setStudentCgpaTarget(from, targetCgpa);
       clearSession(from);
       await sendText(from, "Target set successfully!");
-      await sendText(from, formatFeedbackPrompt());
+      await sendFeedbackPrompt(from);
+      return;
+    }
+
+    case "AWAITING_CGPA_EMPTY_CHOICE": {
+      if (input === "1") {
+        setSession(from, "AWAITING_CGPA_TARGET");
+        await sendText(from, "What is your desired target CGPA?");
+        return;
+      }
+
+      if (input === "2") {
+        clearSession(from);
+        await sendText(from, formatMenu());
+        return;
+      }
+
+      await sendText(from, "Please reply with 1 to set a target or 2 for the main menu.");
       return;
     }
 
@@ -629,7 +719,7 @@ export const processIncomingMessage = async (
       await updateStudentProfileField(from, field, field === "department" ? `${value}`.toUpperCase() : value);
       clearSession(from);
       await sendText(from, "Profile updated successfully.");
-      await sendText(from, formatFeedbackPrompt());
+      await sendFeedbackPrompt(from);
       return;
     }
 
@@ -713,10 +803,7 @@ export const processIncomingMessage = async (
       });
 
       setTimeout(async () => {
-        await sendText(
-          from,
-          `${formatFeedbackPrompt()}\n\nType *menu* to return to the main menu.`
-        );
+        await sendFeedbackPrompt(from);
       }, 3000);
 
       return;
