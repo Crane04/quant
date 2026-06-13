@@ -14,7 +14,12 @@ import {
   formatUnsupportedRequest,
   formatWelcome,
 } from "./formatter";
-import { findByCourseCode, findById, incrementDownload, searchDocuments } from "./pdfService";
+import {
+  findByCourseCode,
+  findById,
+  incrementDownload,
+  searchDocuments,
+} from "./pdfService";
 import { detectLocalIntent } from "./localIntentService";
 import { clearSession, getSession, setSession } from "./session";
 import {
@@ -52,17 +57,22 @@ const normalizeLevel = (value: string): string | null => {
   return match ? match[1] : null;
 };
 
-const parseAssignment = (value: string): { courseCode: string; description: string; dueDate: Date } | null => {
+const parseAssignment = (
+  value: string,
+): { courseCode: string; description: string; dueDate: Date } | null => {
   const courseMatch = value.match(/\b[A-Z]{2,4}\s?\d{3}\b/i);
   if (!courseMatch) return null;
 
   const dateMatch =
-    value.match(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:,\s*\d{4})?\b/i) ||
-    value.match(/\b\d{4}-\d{2}-\d{2}\b/);
+    value.match(
+      /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:,\s*\d{4})?\b/i,
+    ) || value.match(/\b\d{4}-\d{2}-\d{2}\b/);
 
   if (!dateMatch) return null;
 
-  const withYear = /\d{4}/.test(dateMatch[0]) ? dateMatch[0] : `${dateMatch[0]}, ${new Date().getFullYear()}`;
+  const withYear = /\d{4}/.test(dateMatch[0])
+    ? dateMatch[0]
+    : `${dateMatch[0]}, ${new Date().getFullYear()}`;
   const dueDate = new Date(withYear);
 
   if (Number.isNaN(dueDate.getTime())) return null;
@@ -75,7 +85,9 @@ const parseAssignment = (value: string): { courseCode: string; description: stri
     .trim();
 
   return {
-    courseCode: courseMatch[0].toUpperCase().replace(/([A-Z]+)\s?(\d+)/, "$1 $2"),
+    courseCode: courseMatch[0]
+      .toUpperCase()
+      .replace(/([A-Z]+)\s?(\d+)/, "$1 $2"),
     description: description || "Assignment",
     dueDate,
   };
@@ -91,14 +103,17 @@ const formatDate = (date: Date): string => {
 
 const startProfileRegistration = async (from: string): Promise<void> => {
   setSession(from, "AWAITING_PROFILE_NAME", { profile: {} });
-  await sendText(from, formatProfilePrompt("Let's set up your student profile.\n\n1/6 Name:"));
+  await sendText(
+    from,
+    formatProfilePrompt("Let's set up your student profile.\n\n1/6 Name:"),
+  );
 };
 
 const completeProfileStep = async (
   from: string,
   nextState: Parameters<typeof setSession>[1],
   data: Record<string, unknown>,
-  prompt: string
+  prompt: string,
 ): Promise<void> => {
   setSession(from, nextState, data);
   await sendText(from, prompt);
@@ -111,10 +126,13 @@ const sendFeedbackPrompt = async (from: string): Promise<void> => {
 
 const handleGlobalIntent = async (
   from: string,
-  intent: AiIntent | null
+  intent: AiIntent | null,
 ): Promise<boolean> => {
   if (intent?.intent === "greeting") {
-    logInfo("Global intent handled", { from: logPhone(from), intent: intent.intent });
+    logInfo("Global intent handled", {
+      from: logPhone(from),
+      intent: intent.intent,
+    });
     clearSession(from);
     const student = await getStudentByPhone(from);
     if (isProfileComplete(student)) {
@@ -127,28 +145,43 @@ const handleGlobalIntent = async (
   }
 
   if (intent?.intent === "thanks") {
-    logInfo("Global intent handled", { from: logPhone(from), intent: intent.intent });
+    logInfo("Global intent handled", {
+      from: logPhone(from),
+      intent: intent.intent,
+    });
     await sendText(from, "Glad I could help! Is there anything else you need?");
     return true;
   }
 
   if (intent?.intent === "help") {
-    logInfo("Global intent handled", { from: logPhone(from), intent: intent.intent });
+    logInfo("Global intent handled", {
+      from: logPhone(from),
+      intent: intent.intent,
+    });
     await sendText(from, formatHelp());
     return true;
   }
 
   if (intent?.intent === "menu") {
-    logInfo("Global intent handled", { from: logPhone(from), intent: intent.intent });
+    logInfo("Global intent handled", {
+      from: logPhone(from),
+      intent: intent.intent,
+    });
     clearSession(from);
     await sendText(from, formatMenu());
     return true;
   }
 
   if (intent?.intent === "goodbye") {
-    logInfo("Global intent handled", { from: logPhone(from), intent: intent.intent });
+    logInfo("Global intent handled", {
+      from: logPhone(from),
+      intent: intent.intent,
+    });
     clearSession(from);
-    await sendText(from, "Alright, I've ended this session. Type *hi* whenever you need Quant.");
+    await sendText(
+      from,
+      "Alright, I've ended this session. Type *hi* whenever you need Quant.",
+    );
     return true;
   }
 
@@ -165,7 +198,10 @@ const handleGlobalIntent = async (
   return false;
 };
 
-const sendDocumentResults = async (from: string, docs: Awaited<ReturnType<typeof findByCourseCode>>) => {
+const sendDocumentResults = async (
+  from: string,
+  docs: Awaited<ReturnType<typeof findByCourseCode>>,
+) => {
   logInfo("Document lookup completed", {
     from: logPhone(from),
     count: docs.length,
@@ -182,7 +218,10 @@ const sendDocumentResults = async (from: string, docs: Awaited<ReturnType<typeof
   await sendText(from, formatNotFound());
 };
 
-const sendSearchResults = async (from: string, query: string): Promise<void> => {
+const sendSearchResults = async (
+  from: string,
+  query: string,
+): Promise<void> => {
   logInfo("Document search started", {
     from: logPhone(from),
     query: truncate(query),
@@ -199,7 +238,7 @@ const sendSearchResults = async (from: string, query: string): Promise<void> => 
   if (results.length === 0) {
     await sendText(
       from,
-      `🔍 No results for _"${query}"_.\n\nTry different keywords or type *menu* to go back.`
+      `🔍 No results for _"${query}"_.\n\nTry different keywords or type *menu* to go back.`,
     );
     return;
   }
@@ -212,7 +251,7 @@ const sendSearchResults = async (from: string, query: string): Promise<void> => 
 
 export const processIncomingMessage = async (
   from: string,
-  body: string
+  body: string,
 ): Promise<void> => {
   const input = normalizeButtonInput(normalizeInput(body));
 
@@ -245,10 +284,14 @@ export const processIncomingMessage = async (
 
   const studentForNumberedOnboarding = await getStudentByPhone(from);
   const needsProfile =
-    session.state === "IDLE" && !isProfileComplete(studentForNumberedOnboarding);
+    session.state === "IDLE" &&
+    !isProfileComplete(studentForNumberedOnboarding);
 
   if (needsProfile && input === "1") {
-    logInfo("Profile registration started", { from: logPhone(from), source: "numbered_onboarding" });
+    logInfo("Profile registration started", {
+      from: logPhone(from),
+      source: "numbered_onboarding",
+    });
     await startProfileRegistration(from);
     return;
   }
@@ -257,12 +300,19 @@ export const processIncomingMessage = async (
     clearSession(from);
     await sendText(
       from,
-      `A representative can help you here: ${process.env.SUPPORT_WHATSAPP_URL || "https://wa.me/2340000000000"}`
+      `A representative can help you here: ${process.env.SUPPORT_WHATSAPP_URL || "https://wa.me/2340000000000"}`,
     );
     return;
   }
 
-  if (["register profile", "register", "set up profile", "setup profile"].includes(input)) {
+  if (
+    [
+      "register profile",
+      "register",
+      "set up profile",
+      "setup profile",
+    ].includes(input)
+  ) {
     logInfo("Profile registration started", { from: logPhone(from) });
     await startProfileRegistration(from);
     return;
@@ -278,7 +328,7 @@ export const processIncomingMessage = async (
     clearSession(from);
     await sendText(
       from,
-      `A representative can help you here: ${process.env.SUPPORT_WHATSAPP_URL || "https://wa.me/2340000000000"}`
+      `A representative can help you here: ${process.env.SUPPORT_WHATSAPP_URL || "https://wa.me/2340000000000"}`,
     );
     return;
   }
@@ -286,7 +336,8 @@ export const processIncomingMessage = async (
   const shouldRunIntentDetection = session.state === "IDLE";
   let intent: AiIntent | null = localIntent;
 
-  if (shouldRunIntentDetection && (await handleGlobalIntent(from, localIntent))) return;
+  if (shouldRunIntentDetection && (await handleGlobalIntent(from, localIntent)))
+    return;
 
   if (shouldRunIntentDetection) {
     intent = localIntent || (await detectIntent(body));
@@ -309,7 +360,8 @@ export const processIncomingMessage = async (
     });
   }
 
-  if (shouldRunIntentDetection && (await handleGlobalIntent(from, intent))) return;
+  if (shouldRunIntentDetection && (await handleGlobalIntent(from, intent)))
+    return;
 
   switch (session.state) {
     case "AWAITING_FEEDBACK": {
@@ -323,7 +375,7 @@ export const processIncomingMessage = async (
         from,
         ["1", "yes"].includes(input)
           ? "Glad I could help! Is there anything else you need?"
-          : "Sorry to hear that. Reply *5* from the main menu to reach support, or tell me how I can improve."
+          : "Sorry to hear that. Reply *5* from the main menu to reach support, or tell me how I can improve.",
       );
       return;
     }
@@ -332,8 +384,13 @@ export const processIncomingMessage = async (
       await completeProfileStep(
         from,
         "AWAITING_PROFILE_SCHOOL",
-        { profile: { ...(session.data.profile as Record<string, unknown>), name: body.trim() } },
-        formatProfilePrompt("2/6 School/Institution:")
+        {
+          profile: {
+            ...(session.data.profile as Record<string, unknown>),
+            name: body.trim(),
+          },
+        },
+        formatProfilePrompt("2/6 School/Institution:"),
       );
       return;
     }
@@ -342,8 +399,13 @@ export const processIncomingMessage = async (
       await completeProfileStep(
         from,
         "AWAITING_PROFILE_FACULTY",
-        { profile: { ...(session.data.profile as Record<string, unknown>), school: body.trim() } },
-        formatProfilePrompt("3/6 Faculty:")
+        {
+          profile: {
+            ...(session.data.profile as Record<string, unknown>),
+            school: body.trim(),
+          },
+        },
+        formatProfilePrompt("3/6 Faculty:"),
       );
       return;
     }
@@ -352,8 +414,13 @@ export const processIncomingMessage = async (
       await completeProfileStep(
         from,
         "AWAITING_PROFILE_DEPARTMENT",
-        { profile: { ...(session.data.profile as Record<string, unknown>), faculty: body.trim() } },
-        formatProfilePrompt("4/6 Department:")
+        {
+          profile: {
+            ...(session.data.profile as Record<string, unknown>),
+            faculty: body.trim(),
+          },
+        },
+        formatProfilePrompt("4/6 Department:"),
       );
       return;
     }
@@ -362,8 +429,13 @@ export const processIncomingMessage = async (
       await completeProfileStep(
         from,
         "AWAITING_PROFILE_LEVEL",
-        { profile: { ...(session.data.profile as Record<string, unknown>), department: body.trim().toUpperCase() } },
-        formatProfilePrompt("5/6 Level:")
+        {
+          profile: {
+            ...(session.data.profile as Record<string, unknown>),
+            department: body.trim().toUpperCase(),
+          },
+        },
+        formatProfilePrompt("5/6 Level:"),
       );
       return;
     }
@@ -371,15 +443,23 @@ export const processIncomingMessage = async (
     case "AWAITING_PROFILE_LEVEL": {
       const level = normalizeLevel(body);
       if (!level) {
-        await sendText(from, "Please reply with a valid level: 100, 200, 300, 400, or 500.");
+        await sendText(
+          from,
+          "Please reply with a valid level: 100, 200, 300, 400, or 500.",
+        );
         return;
       }
 
       await completeProfileStep(
         from,
         "AWAITING_PROFILE_CGPA",
-        { profile: { ...(session.data.profile as Record<string, unknown>), level } },
-        formatProfilePrompt("6/6 Current CGPA:")
+        {
+          profile: {
+            ...(session.data.profile as Record<string, unknown>),
+            level,
+          },
+        },
+        formatProfilePrompt("6/6 Current CGPA:"),
       );
       return;
     }
@@ -427,15 +507,23 @@ export const processIncomingMessage = async (
         return;
       }
 
-      if (["1", "get pdf", "pdf", "get course pdf", "course pdf"].includes(input)) {
-        logInfo("Command branch selected", { from: logPhone(from), branch: "get_pdf" });
+      if (
+        ["1", "get pdf", "pdf", "get course pdf", "course pdf"].includes(input)
+      ) {
+        logInfo("Command branch selected", {
+          from: logPhone(from),
+          branch: "get_pdf",
+        });
         setSession(from, "AWAITING_COURSE_CODE");
         await sendText(from, formatCoursePrompt());
         return;
       }
 
       if (["2", "view assignments", "assignments"].includes(input)) {
-        logInfo("Command branch selected", { from: logPhone(from), branch: "assignments" });
+        logInfo("Command branch selected", {
+          from: logPhone(from),
+          branch: "assignments",
+        });
         const activeAssignments = (student.assignments || [])
           .filter((assignment) => assignment.dueDate >= new Date())
           .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
@@ -444,39 +532,49 @@ export const processIncomingMessage = async (
           setSession(from, "AWAITING_ASSIGNMENT_EMPTY_CHOICE");
           await sendText(
             from,
-            `You haven't set any assignments or reminders yet.\n\nReply with a number:\n1. Set Assignment/Reminder\n2. Main Menu`
+            `You haven't set any assignments or reminders yet.\n\nReply with a number:\n1. Set Assignment/Reminder\n2. Main Menu`,
           );
           return;
         }
 
         const lines = activeAssignments.map(
           (assignment) =>
-            `${assignment.courseCode}: ${assignment.description} - Due: ${formatDate(assignment.dueDate)}.`
+            `${assignment.courseCode}: ${assignment.description} - Due: ${formatDate(assignment.dueDate)}.`,
         );
         setSession(from, "AWAITING_ASSIGNMENT_ACTION_CHOICE");
         await sendText(
           from,
-          `Here is your active workload:\n\n${lines.join("\n")}\n\nReply with a number:\n1. Keep reminder alerts on\n2. Main Menu`
+          `Here is your active workload:\n\n${lines.join("\n")}\n\nReply with a number:\n1. Keep reminder alerts on\n2. Main Menu`,
         );
         return;
       }
 
-      if (["set assignment/reminder", "set assignment", "set reminder", "remind me"].includes(input)) {
+      if (
+        [
+          "set assignment/reminder",
+          "set assignment",
+          "set reminder",
+          "remind me",
+        ].includes(input)
+      ) {
         setSession(from, "AWAITING_ASSIGNMENT_DETAILS");
         await sendText(
           from,
-          "Please provide the assignment description, due date, and course code."
+          "Please provide the assignment description, due date, and course code.",
         );
         return;
       }
 
       if (["3", "track cgpa", "cgpa"].includes(input)) {
-        logInfo("Command branch selected", { from: logPhone(from), branch: "cgpa" });
+        logInfo("Command branch selected", {
+          from: logPhone(from),
+          branch: "cgpa",
+        });
         if (student.targetCgpa === undefined || student.targetCgpa === null) {
           setSession(from, "AWAITING_CGPA_EMPTY_CHOICE");
           await sendText(
             from,
-            `You haven't set a CGPA target yet.\n\nReply with a number:\n1. Set Target\n2. Main Menu`
+            `You haven't set a CGPA target yet.\n\nReply with a number:\n1. Set Target\n2. Main Menu`,
           );
           return;
         }
@@ -486,7 +584,7 @@ export const processIncomingMessage = async (
           from,
           `Current CGPA: ${(student.currentCgpa || 0).toFixed(2)}. Target: ${student.targetCgpa.toFixed(2)}.\n` +
             `Status: You are currently ${Math.abs(gap).toFixed(2)} points ${gap > 0 ? "off your target" : "above your target"}.\n\n` +
-            `Would you like to log a new CA score to update your projection?`
+            `Would you like to log a new CA score to update your projection?`,
         );
         await sendFeedbackPrompt(from);
         return;
@@ -498,11 +596,15 @@ export const processIncomingMessage = async (
         return;
       }
 
-      if (["4", "edit profile", "update profile", "change my details"].includes(input)) {
+      if (
+        ["4", "edit profile", "update profile", "change my details"].includes(
+          input,
+        )
+      ) {
         setSession(from, "AWAITING_PROFILE_EDIT_FIELD");
         await sendText(
           from,
-          `${formatProfileSummary(student)}\n\nWhich field do you want to update? Reply with name, school, faculty, department, level, or cgpa.`
+          `${formatProfileSummary(student)}\n\nWhich field do you want to update? Reply with name, school, faculty, department, level, or cgpa.`,
         );
         return;
       }
@@ -513,7 +615,10 @@ export const processIncomingMessage = async (
       }
 
       if (["search", "search material"].includes(input)) {
-        logInfo("Command branch selected", { from: logPhone(from), branch: "search_prompt" });
+        logInfo("Command branch selected", {
+          from: logPhone(from),
+          branch: "search_prompt",
+        });
         setSession(from, "AWAITING_SEARCH_QUERY");
         await sendText(from, formatSearchPrompt());
         return;
@@ -536,10 +641,7 @@ export const processIncomingMessage = async (
           branch: "find_document",
           lookupTerm: truncate(lookupTerm),
         });
-        const docs = await findByCourseCode(lookupTerm, {
-          department: student.department,
-          level: student.level,
-        });
+        const docs = await findByCourseCode(lookupTerm);
         await sendDocumentResults(from, docs);
         return;
       }
@@ -549,10 +651,7 @@ export const processIncomingMessage = async (
         branch: "direct_course_lookup",
         lookupTerm: truncate(body),
       });
-      const docs = await findByCourseCode(body, {
-        department: student.department,
-        level: student.level,
-      });
+      const docs = await findByCourseCode(body);
       await sendDocumentResults(from, docs);
       return;
     }
@@ -560,10 +659,7 @@ export const processIncomingMessage = async (
     case "AWAITING_ASSIGNMENT_DETAILS": {
       const assignment = parseAssignment(body);
       if (!assignment) {
-        await sendText(
-          from,
-          "Please include a course code and due date."
-        );
+        await sendText(from, "Please include a course code and due date.");
         return;
       }
 
@@ -579,7 +675,7 @@ export const processIncomingMessage = async (
         setSession(from, "AWAITING_ASSIGNMENT_DETAILS");
         await sendText(
           from,
-          "Please provide the assignment description, due date, and course code."
+          "Please provide the assignment description, due date, and course code.",
         );
         return;
       }
@@ -590,14 +686,20 @@ export const processIncomingMessage = async (
         return;
       }
 
-      await sendText(from, "Please reply with 1 to set an assignment/reminder or 2 for the main menu.");
+      await sendText(
+        from,
+        "Please reply with 1 to set an assignment/reminder or 2 for the main menu.",
+      );
       return;
     }
 
     case "AWAITING_ASSIGNMENT_ACTION_CHOICE": {
       if (input === "1") {
         clearSession(from);
-        await sendText(from, "Reminder alerts are on. I will notify you 24 hours before active assignment deadlines.");
+        await sendText(
+          from,
+          "Reminder alerts are on. I will notify you 24 hours before active assignment deadlines.",
+        );
         await sendFeedbackPrompt(from);
         return;
       }
@@ -608,14 +710,20 @@ export const processIncomingMessage = async (
         return;
       }
 
-      await sendText(from, "Please reply with 1 to keep reminder alerts on or 2 for the main menu.");
+      await sendText(
+        from,
+        "Please reply with 1 to keep reminder alerts on or 2 for the main menu.",
+      );
       return;
     }
 
     case "AWAITING_CGPA_TARGET": {
       const targetCgpa = parseCgpa(body);
       if (targetCgpa === null) {
-        await sendText(from, "Please enter a valid target CGPA from 0.00 to 5.00.");
+        await sendText(
+          from,
+          "Please enter a valid target CGPA from 0.00 to 5.00.",
+        );
         return;
       }
 
@@ -627,7 +735,7 @@ export const processIncomingMessage = async (
         setSession(from, "AWAITING_CGPA_EMPTY_CHOICE");
         await sendText(
           from,
-          "Based on your current academic standing, this target may be challenging to reach. Let's look at a more achievable goal to keep you on track.\n\nReply with a number:\n1. Set Target\n2. Main Menu"
+          "Based on your current academic standing, this target may be challenging to reach. Let's look at a more achievable goal to keep you on track.\n\nReply with a number:\n1. Set Target\n2. Main Menu",
         );
         return;
       }
@@ -652,7 +760,10 @@ export const processIncomingMessage = async (
         return;
       }
 
-      await sendText(from, "Please reply with 1 to set a target or 2 for the main menu.");
+      await sendText(
+        from,
+        "Please reply with 1 to set a target or 2 for the main menu.",
+      );
       return;
     }
 
@@ -670,7 +781,10 @@ export const processIncomingMessage = async (
       const field = fieldMap[input];
 
       if (!field) {
-        await sendText(from, "Reply with name, school, faculty, department, level, or cgpa.");
+        await sendText(
+          from,
+          "Reply with name, school, faculty, department, level, or cgpa.",
+        );
         return;
       }
 
@@ -692,7 +806,10 @@ export const processIncomingMessage = async (
       if (field === "level") {
         const level = normalizeLevel(body);
         if (!level) {
-          await sendText(from, "Please reply with a valid level: 100, 200, 300, 400, or 500.");
+          await sendText(
+            from,
+            "Please reply with a valid level: 100, 200, 300, 400, or 500.",
+          );
           return;
         }
         value = level;
@@ -707,7 +824,11 @@ export const processIncomingMessage = async (
         value = cgpa;
       }
 
-      await updateStudentProfileField(from, field, field === "department" ? `${value}`.toUpperCase() : value);
+      await updateStudentProfileField(
+        from,
+        field,
+        field === "department" ? `${value}`.toUpperCase() : value,
+      );
       clearSession(from);
       await sendText(from, "Profile updated successfully.");
       await sendFeedbackPrompt(from);
@@ -734,15 +855,12 @@ export const processIncomingMessage = async (
         branch: "course_lookup",
         lookupTerm: truncate(lookupTerm),
       });
-      const docs = await findByCourseCode(lookupTerm, {
-        department: student?.department,
-        level: student?.level,
-      });
+      const docs = await findByCourseCode(lookupTerm);
 
       if (docs.length === 0) {
         await sendText(
           from,
-          `❌ No materials found for *${lookupTerm.toUpperCase()}*.\n\nCheck the course code and try again, or type *search <keyword>* to search by topic.`
+          `❌ No materials found for *${lookupTerm.toUpperCase()}*.\n\nCheck the course code and try again, or type *search <keyword>* to search by topic.`,
         );
         return;
       }
@@ -769,7 +887,7 @@ export const processIncomingMessage = async (
       if (isNaN(choice) || choice < 1 || choice > docIds.length) {
         await sendText(
           from,
-          `Please reply with a number between *1* and *${docIds.length}*, or type *menu* to start over.`
+          `Please reply with a number between *1* and *${docIds.length}*, or type *menu* to start over.`,
         );
         return;
       }
@@ -779,7 +897,10 @@ export const processIncomingMessage = async (
 
       if (!doc) {
         clearSession(from);
-        await sendText(from, `❌ Document not found. Type *menu* to start over.`);
+        await sendText(
+          from,
+          `❌ Document not found. Type *menu* to start over.`,
+        );
         return;
       }
 
