@@ -60,7 +60,6 @@ export const formatProfileSummary = (student: IStudent): string => {
     `*Student Profile*\n\n` +
     `Name: ${student.name}\n` +
     `School: ${student.school}\n` +
-    `Campus: ${student.campus}\n` +
     `Faculty: ${student.faculty}\n` +
     `Department: ${student.department}\n` +
     `Level: ${student.level}L\n` +
@@ -81,7 +80,7 @@ export const formatNotFound = (): string => {
 export const formatCoursePrompt = (): string => {
   return (
     `📖 *Get PDF*\n\n` +
-    `Reply with the course code you need. (e.g., ECE 316).`
+    `Reply with the course code you need.`
   );
 };
 

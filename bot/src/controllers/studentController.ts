@@ -5,7 +5,6 @@ import { sendError, sendSuccess } from "../utils/apiResponse";
 const editableStudentFields = [
   "name",
   "school",
-  "campus",
   "faculty",
   "department",
   "level",
@@ -15,10 +14,9 @@ const editableStudentFields = [
 
 const buildStudentFilter = (query: Request["query"]): Record<string, unknown> => {
   const filter: Record<string, unknown> = {};
-  const { search, school, campus, faculty, department, level } = query;
+  const { search, school, faculty, department, level } = query;
 
   if (school) filter.school = { $regex: school as string, $options: "i" };
-  if (campus) filter.campus = { $regex: campus as string, $options: "i" };
   if (faculty) filter.faculty = { $regex: faculty as string, $options: "i" };
   if (department) filter.department = { $regex: department as string, $options: "i" };
   if (level) filter.level = level;

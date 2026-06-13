@@ -89,7 +89,6 @@ export const updateDocument = async (
 export const fetchStudents = async (filters?: {
   search?: string;
   school?: string;
-  campus?: string;
   faculty?: string;
   department?: string;
   level?: string;

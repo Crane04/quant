@@ -20,7 +20,6 @@ const LEVELS = ["", "100", "200", "300", "400", "500"];
 const editableFields = [
   "name",
   "school",
-  "campus",
   "faculty",
   "department",
   "level",
@@ -31,7 +30,6 @@ const editableFields = [
 const getInitialForm = (student: Student): Record<(typeof editableFields)[number], string> => ({
   name: student.name || "",
   school: student.school || "",
-  campus: student.campus || "",
   faculty: student.faculty || "",
   department: student.department || "",
   level: student.level || "",
@@ -52,7 +50,6 @@ const buildUpdatePayload = (form: ReturnType<typeof getInitialForm>): StudentUpd
   const payload: StudentUpdatePayload = {
     name: form.name.trim(),
     school: form.school.trim(),
-    campus: form.campus.trim(),
     faculty: form.faculty.trim(),
     department: form.department.trim(),
     level: form.level,
@@ -222,14 +219,6 @@ export default function StudentsPage() {
                             />
                           </div>
                           <div>
-                            <label className="label">Campus</label>
-                            <input
-                              value={form.campus}
-                              onChange={(event) => setForm((current) => current && { ...current, campus: event.target.value })}
-                              className="input"
-                            />
-                          </div>
-                          <div>
                             <label className="label">Faculty</label>
                             <input
                               value={form.faculty}
@@ -330,7 +319,7 @@ export default function StudentsPage() {
                         <span>{student.department || "No department"}</span>
                       </div>
                       <p className="text-xs text-zinc-500 mt-0.5">
-                        {[student.school, student.campus].filter(Boolean).join(" / ") || "No school set"}
+                        {student.school || "No school set"}
                       </p>
                     </td>
 

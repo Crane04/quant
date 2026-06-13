@@ -4,7 +4,6 @@ export interface IStudent extends Document {
   phoneNumber: string; // WhatsApp number e.g. "whatsapp:+2348012345678"
   name: string;
   school: string;
-  campus: string;
   faculty: string;
   matricNumber: string;
   department: string;
@@ -28,7 +27,6 @@ const StudentSchema = new Schema<IStudent>(
     phoneNumber: { type: String, required: true, unique: true },
     name: { type: String, default: "Student" },
     school: { type: String, trim: true },
-    campus: { type: String, trim: true },
     faculty: { type: String, trim: true },
     matricNumber: { type: String, trim: true },
     department: { type: String, trim: true },

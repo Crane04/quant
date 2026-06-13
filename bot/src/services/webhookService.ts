@@ -91,7 +91,7 @@ const formatDate = (date: Date): string => {
 
 const startProfileRegistration = async (from: string): Promise<void> => {
   setSession(from, "AWAITING_PROFILE_NAME", { profile: {} });
-  await sendText(from, formatProfilePrompt("Let's set up your student profile.\n\n1/7 Name:"));
+  await sendText(from, formatProfilePrompt("Let's set up your student profile.\n\n1/6 Name:"));
 };
 
 const completeProfileStep = async (
@@ -283,9 +283,14 @@ export const processIncomingMessage = async (
     return;
   }
 
-  if (await handleGlobalIntent(from, localIntent)) return;
+  const shouldRunIntentDetection = session.state === "IDLE";
+  let intent: AiIntent | null = localIntent;
 
-  const intent = localIntent || (await detectIntent(body));
+  if (shouldRunIntentDetection && (await handleGlobalIntent(from, localIntent))) return;
+
+  if (shouldRunIntentDetection) {
+    intent = localIntent || (await detectIntent(body));
+  }
 
   if (intent && intent !== localIntent) {
     logInfo("AI intent selected", {
@@ -297,14 +302,14 @@ export const processIncomingMessage = async (
     });
   }
 
-  if (!intent) {
+  if (shouldRunIntentDetection && !intent) {
     logInfo("No intent detected, falling back to direct course lookup", {
       from: logPhone(from),
       body: truncate(body),
     });
   }
 
-  if (await handleGlobalIntent(from, intent)) return;
+  if (shouldRunIntentDetection && (await handleGlobalIntent(from, intent))) return;
 
   switch (session.state) {
     case "AWAITING_FEEDBACK": {
@@ -328,7 +333,7 @@ export const processIncomingMessage = async (
         from,
         "AWAITING_PROFILE_SCHOOL",
         { profile: { ...(session.data.profile as Record<string, unknown>), name: body.trim() } },
-        formatProfilePrompt("2/7 School/Institution:", "Example: LASU or Lagos State University")
+        formatProfilePrompt("2/6 School/Institution:")
       );
       return;
     }
@@ -336,19 +341,9 @@ export const processIncomingMessage = async (
     case "AWAITING_PROFILE_SCHOOL": {
       await completeProfileStep(
         from,
-        "AWAITING_PROFILE_CAMPUS",
-        { profile: { ...(session.data.profile as Record<string, unknown>), school: body.trim() } },
-        formatProfilePrompt("3/7 Campus:", "Example: Ojo or Epe")
-      );
-      return;
-    }
-
-    case "AWAITING_PROFILE_CAMPUS": {
-      await completeProfileStep(
-        from,
         "AWAITING_PROFILE_FACULTY",
-        { profile: { ...(session.data.profile as Record<string, unknown>), campus: body.trim() } },
-        formatProfilePrompt("4/7 Faculty:", "Example: Engineering")
+        { profile: { ...(session.data.profile as Record<string, unknown>), school: body.trim() } },
+        formatProfilePrompt("3/6 Faculty:")
       );
       return;
     }
@@ -358,7 +353,7 @@ export const processIncomingMessage = async (
         from,
         "AWAITING_PROFILE_DEPARTMENT",
         { profile: { ...(session.data.profile as Record<string, unknown>), faculty: body.trim() } },
-        formatProfilePrompt("5/7 Department:", "Example: ECE, MEE, CVE")
+        formatProfilePrompt("4/6 Department:")
       );
       return;
     }
@@ -368,7 +363,7 @@ export const processIncomingMessage = async (
         from,
         "AWAITING_PROFILE_LEVEL",
         { profile: { ...(session.data.profile as Record<string, unknown>), department: body.trim().toUpperCase() } },
-        formatProfilePrompt("6/7 Level:", "Reply 100, 200, 300, 400, or 500")
+        formatProfilePrompt("5/6 Level:")
       );
       return;
     }
@@ -384,7 +379,7 @@ export const processIncomingMessage = async (
         from,
         "AWAITING_PROFILE_CGPA",
         { profile: { ...(session.data.profile as Record<string, unknown>), level } },
-        formatProfilePrompt("7/7 Current CGPA:", "Enter a number from 0.00 to 5.00")
+        formatProfilePrompt("6/6 Current CGPA:")
       );
       return;
     }
@@ -399,7 +394,6 @@ export const processIncomingMessage = async (
       const profile = session.data.profile as {
         name: string;
         school: string;
-        campus: string;
         faculty: string;
         department: string;
         level: string;
@@ -413,7 +407,6 @@ export const processIncomingMessage = async (
       const student = await upsertStudentProfile(from, {
         name: profile.name,
         school: profile.school,
-        campus: profile.campus,
         faculty: profile.faculty,
         department: profile.department,
         level: profile.level,
@@ -472,7 +465,7 @@ export const processIncomingMessage = async (
         setSession(from, "AWAITING_ASSIGNMENT_DETAILS");
         await sendText(
           from,
-          "Please provide the assignment description, due date (e.g., June 15), and the Course Code."
+          "Please provide the assignment description, due date, and course code."
         );
         return;
       }
@@ -509,7 +502,7 @@ export const processIncomingMessage = async (
         setSession(from, "AWAITING_PROFILE_EDIT_FIELD");
         await sendText(
           from,
-          `${formatProfileSummary(student)}\n\nWhich field do you want to update? Reply with name, school, campus, faculty, department, level, or cgpa.`
+          `${formatProfileSummary(student)}\n\nWhich field do you want to update? Reply with name, school, faculty, department, level, or cgpa.`
         );
         return;
       }
@@ -569,7 +562,7 @@ export const processIncomingMessage = async (
       if (!assignment) {
         await sendText(
           from,
-          "Please include a course code and due date. Example: ECE 316 Problem Set 2 due June 15."
+          "Please include a course code and due date."
         );
         return;
       }
@@ -586,7 +579,7 @@ export const processIncomingMessage = async (
         setSession(from, "AWAITING_ASSIGNMENT_DETAILS");
         await sendText(
           from,
-          "Please provide the assignment description, due date (e.g., June 15), and the Course Code."
+          "Please provide the assignment description, due date, and course code."
         );
         return;
       }
@@ -668,7 +661,6 @@ export const processIncomingMessage = async (
         name: "name",
         school: "school",
         institution: "school",
-        campus: "campus",
         faculty: "faculty",
         department: "department",
         level: "level",
@@ -678,7 +670,7 @@ export const processIncomingMessage = async (
       const field = fieldMap[input];
 
       if (!field) {
-        await sendText(from, "Reply with name, school, campus, faculty, department, level, or cgpa.");
+        await sendText(from, "Reply with name, school, faculty, department, level, or cgpa.");
         return;
       }
 
@@ -691,7 +683,6 @@ export const processIncomingMessage = async (
       const field = session.data.editField as
         | "name"
         | "school"
-        | "campus"
         | "faculty"
         | "department"
         | "level"

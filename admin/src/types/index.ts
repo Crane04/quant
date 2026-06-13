@@ -47,7 +47,6 @@ export interface Student {
   phoneNumber: string;
   name: string;
   school?: string;
-  campus?: string;
   faculty?: string;
   matricNumber?: string;
   department?: string;
@@ -71,7 +70,6 @@ export interface StudentsResponse {
 export type StudentUpdatePayload = Partial<{
   name: string;
   school: string;
-  campus: string;
   faculty: string;
   department: string;
   level: string;

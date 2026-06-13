@@ -3,7 +3,6 @@ import { IStudent, Student } from "../models/Student";
 export type StudentProfileInput = {
   name: string;
   school: string;
-  campus: string;
   faculty: string;
   department: string;
   level: string;
@@ -19,7 +18,6 @@ export type AssignmentInput = {
 const requiredProfileFields = [
   "name",
   "school",
-  "campus",
   "faculty",
   "department",
   "level",
