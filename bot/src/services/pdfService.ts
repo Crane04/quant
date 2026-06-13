@@ -1,27 +1,24 @@
 import { PDFDocument, IDocument } from "../models/Document";
 
-export const findByCourseCode = async (
-  query: string,
-  filters: { department?: string; level?: string } = {}
-): Promise<IDocument[]> => {
-  const normalized = query.trim().toUpperCase().replace(/\s+/g, " ");
-  const profileFilter: Record<string, unknown> = {};
+export const findByCourseCode = async (query: string): Promise<IDocument[]> => {
+  const normalized = query
+    .trim()
+    .toUpperCase()
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ");
 
-  if (filters.department) profileFilter.department = { $regex: filters.department, $options: "i" };
-  if (filters.level) profileFilter.level = filters.level;
+  const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-  // Try exact course code match first
-  let docs = await PDFDocument.find({
-    ...profileFilter,
-    courseCode: { $regex: new RegExp(normalized, "i") },
-  }).sort({ title: 1 });
+  // Try exact course code match first (global search, no department/level filters)
+  const codeQuery = {
+    courseCode: { $regex: new RegExp(escapeRegExp(normalized), "i") },
+  };
+  let docs = await PDFDocument.find(codeQuery).sort({ title: 1 });
 
-  // Fall back to course name match
+  // Fall back to course name match (global)
   if (docs.length === 0) {
-    docs = await PDFDocument.find({
-      ...profileFilter,
-      courseName: { $regex: new RegExp(query.trim(), "i") },
-    }).sort({ title: 1 });
+    const nameQuery = { courseName: { $regex: new RegExp(query.trim(), "i") } };
+    docs = await PDFDocument.find(nameQuery).sort({ title: 1 });
   }
 
   return docs;
@@ -30,7 +27,7 @@ export const findByCourseCode = async (
 export const searchDocuments = async (query: string): Promise<IDocument[]> => {
   const docs = await PDFDocument.find(
     { $text: { $search: query } },
-    { score: { $meta: "textScore" } }
+    { score: { $meta: "textScore" } },
   )
     .sort({ score: { $meta: "textScore" } })
     .limit(8);
