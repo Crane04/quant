@@ -24,6 +24,17 @@ const unsupportedTerms = [
   "advice",
   "advise me",
 ];
+const assignmentTerms = [
+  "assignment",
+  "reminder",
+  "remind me",
+  "deadline",
+  "due",
+  "quiz",
+  "test",
+  "lab report",
+  "project",
+];
 
 const startsWithAny = (input: string, prefixes: string[]): string | null => {
   return prefixes.find((prefix) => input.startsWith(prefix)) || null;
@@ -45,6 +56,9 @@ export const detectLocalIntent = (message: string): AiIntent | null => {
   if (helpInputs.includes(input)) return { intent: "help" };
   if (goodbyeInputs.includes(input)) return { intent: "goodbye" };
   if (thanksInputs.some((term) => input.includes(term))) return { intent: "thanks" };
+  if (assignmentTerms.some((term) => input.includes(term))) {
+    return { intent: "set_assignment", query: message.trim() };
+  }
   if (unsupportedTerms.some((term) => input.includes(term))) {
     return { intent: "unsupported_request", query: message.trim() };
   }

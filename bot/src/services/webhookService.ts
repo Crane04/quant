@@ -1,4 +1,9 @@
-import { AiIntent, detectIntent } from "./aiIntentService";
+import {
+  AiIntent,
+  AssignmentDetails,
+  detectIntent,
+  extractAssignmentDetails,
+} from "./aiIntentService";
 import {
   formatCoursePrompt,
   formatDocumentList,
@@ -102,6 +107,52 @@ const parseAssignment = (
     description: description || "Assignment",
     dueDate,
   };
+};
+
+const parseIsoDate = (value: string | undefined): Date | null => {
+  if (!value) return null;
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const date = new Date(`${value}T09:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const normalizeAiAssignment = (
+  details: AssignmentDetails | null,
+): { courseCode: string; description: string; dueDate: Date } | null => {
+  const dueDate = parseIsoDate(details?.dueDate);
+
+  if (!details?.courseCode || !details.description || !dueDate) return null;
+
+  return {
+    courseCode: details.courseCode,
+    description: details.description,
+    dueDate,
+  };
+};
+
+const parseAssignmentWithAi = async (
+  body: string,
+): Promise<{ courseCode: string; description: string; dueDate: Date } | null> => {
+  const aiAssignment = normalizeAiAssignment(await extractAssignmentDetails(body));
+  return aiAssignment || parseAssignment(body);
+};
+
+const formatMissingAssignmentDetails = (
+  details: AssignmentDetails | null,
+): string => {
+  const missing = [
+    !details?.courseCode ? "course code" : null,
+    !details?.description ? "assignment/task" : null,
+    !parseIsoDate(details?.dueDate) ? "due date" : null,
+  ].filter(Boolean);
+
+  if (missing.length === 0) {
+    return "I couldn't understand that assignment. Please rephrase it with the course code, task, and due date.";
+  }
+
+  return `I still need the ${missing.join(", ")}. You can type it naturally, e.g. "MTH 204 tutorial 3 due next Friday".`;
 };
 
 const formatDate = (date: Date): string => {
@@ -596,8 +647,26 @@ export const processIncomingMessage = async (
         setSession(from, "AWAITING_ASSIGNMENT_DETAILS");
         await sendText(
           from,
-          "Please provide the assignment description, due date, and course code.",
+          "Send the assignment in your own words. Include the course code, what is due, and when it is due.",
         );
+        return;
+      }
+
+      if (intent?.intent === "set_assignment") {
+        const assignment = await parseAssignmentWithAi(body);
+        if (!assignment) {
+          setSession(from, "AWAITING_ASSIGNMENT_DETAILS");
+          await sendText(
+            from,
+            formatMissingAssignmentDetails(await extractAssignmentDetails(body)),
+          );
+          return;
+        }
+
+        await addStudentAssignment(from, assignment);
+        clearSession(from);
+        await sendText(from, "Success! Your assignment has been scheduled.");
+        await sendFeedbackPrompt(from);
         return;
       }
 
@@ -693,9 +762,10 @@ export const processIncomingMessage = async (
     }
 
     case "AWAITING_ASSIGNMENT_DETAILS": {
-      const assignment = parseAssignment(body);
+      const details = await extractAssignmentDetails(body);
+      const assignment = normalizeAiAssignment(details) || parseAssignment(body);
       if (!assignment) {
-        await sendText(from, "Please include a course code and due date.");
+        await sendText(from, formatMissingAssignmentDetails(details));
         return;
       }
 
@@ -711,7 +781,7 @@ export const processIncomingMessage = async (
         setSession(from, "AWAITING_ASSIGNMENT_DETAILS");
         await sendText(
           from,
-          "Please provide the assignment description, due date, and course code.",
+          "Send the assignment in your own words. Include the course code, what is due, and when it is due.",
         );
         return;
       }
