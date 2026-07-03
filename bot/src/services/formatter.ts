@@ -50,7 +50,7 @@ export const formatMenu = (): string => {
 
 export const formatRegistrationComplete = (student: IStudent): string => {
   return (
-    `Registration complete. You are registered as a ${student.level}L ${student.department} student from ${student.school}.\n\n` +
+    `Registration complete. You are registered as a ${student.department} student from ${student.school}.\n\n` +
     `Select an action from the menu below.`
   );
 };
@@ -59,10 +59,13 @@ export const formatProfileSummary = (student: IStudent): string => {
   return (
     `*Student Profile*\n\n` +
     `Name: ${student.name}\n` +
+    `Email: ${student.email || "Not set"}\n` +
     `School: ${student.school}\n` +
     `Faculty: ${student.faculty}\n` +
+    `Matric Number: ${student.matricNumber || "Not set"}\n` +
     `Department: ${student.department}\n` +
     `Level: ${student.level}L\n` +
+    `Semester: ${student.semester || "Not set"}\n` +
     `Current CGPA: ${student.currentCgpa?.toFixed(2) || "Not set"}`
   );
 };

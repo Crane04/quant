@@ -6,7 +6,7 @@ WhatsApp PDF delivery bot for Quant App.
 
 - Node.js + TypeScript + Express
 - MongoDB / Mongoose
-- Twilio WhatsApp Business API
+- Twilio WhatsApp
 - Cloudinary (PDF storage)
 - In-memory session store (Redis-ready)
 
@@ -23,9 +23,9 @@ npm run dev
 | Variable | Description |
 |---|---|
 | `MONGODB_URI` | MongoDB connection string |
-| `TWILIO_ACCOUNT_SID` | Twilio account SID |
-| `TWILIO_AUTH_TOKEN` | Twilio auth token |
-| `TWILIO_WHATSAPP_NUMBER` | Your Twilio WhatsApp number e.g. `whatsapp:+14155238886` |
+| `TWILIO_ACCOUNT_SID` | Twilio Account SID |
+| `TWILIO_AUTH_TOKEN` | Twilio Auth Token |
+| `TWILIO_WHATSAPP_NUMBER` | Twilio WhatsApp sender, e.g. `whatsapp:+14155238886` |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret |
@@ -42,13 +42,27 @@ npm run dev
 | `DRIVE_IMPORT_DEPARTMENT` | Optional department value used by Drive imports |
 | `DRIVE_IMPORT_MAX_FILE_SIZE_BYTES` | Optional max PDF size to import; defaults to Cloudinary's 10 MB free-plan limit |
 
-## Twilio Webhook
+## Twilio WhatsApp Setup
 
-Point your Twilio WhatsApp sandbox or number's incoming message webhook to:
+In Twilio Console, configure your WhatsApp sender or sandbox and set the incoming message webhook to:
 
 ```
-POST https://your-domain.com/webhook/whatsapp
+https://your-domain.com/webhook/whatsapp
 ```
+
+Use `POST` as the webhook method. Copy your Account SID, Auth Token, and WhatsApp sender into `.env`.
+
+## Student Profile Registration
+
+Registration happens directly in chat. Quant asks for each detail one after another:
+
+1. Name
+2. Email
+3. School / Institution
+4. Faculty
+5. Department
+6. Level
+7. Current CGPA
 
 ## Admin Auth
 

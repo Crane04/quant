@@ -52,9 +52,20 @@ const parseCgpa = (value: string): number | null => {
   return Number.isFinite(cgpa) && cgpa >= 0 && cgpa <= 5 ? cgpa : null;
 };
 
+const isValidEmail = (value: string): boolean => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+};
+
 const normalizeLevel = (value: string): string | null => {
   const match = value.match(/\b(100|200|300|400|500)\b/);
   return match ? match[1] : null;
+};
+
+const normalizeSemester = (value: string): "first" | "second" | null => {
+  const input = value.toLowerCase().trim();
+  if (["first", "1st", "one", "1"].includes(input)) return "first";
+  if (["second", "2nd", "two", "2"].includes(input)) return "second";
+  return null;
 };
 
 const parseAssignment = (
@@ -105,7 +116,7 @@ const startProfileRegistration = async (from: string): Promise<void> => {
   setSession(from, "AWAITING_PROFILE_NAME", { profile: {} });
   await sendText(
     from,
-    formatProfilePrompt("Let's set up your student profile.\n\n1/6 Name:"),
+    formatProfilePrompt("Let's set up your student profile.\n\n1/7 Name:"),
   );
 };
 
@@ -383,14 +394,35 @@ export const processIncomingMessage = async (
     case "AWAITING_PROFILE_NAME": {
       await completeProfileStep(
         from,
-        "AWAITING_PROFILE_SCHOOL",
+        "AWAITING_PROFILE_EMAIL",
         {
           profile: {
             ...(session.data.profile as Record<string, unknown>),
             name: body.trim(),
           },
         },
-        formatProfilePrompt("2/6 School/Institution:"),
+        formatProfilePrompt("2/7 Email address:"),
+      );
+      return;
+    }
+
+    case "AWAITING_PROFILE_EMAIL": {
+      const email = body.trim().toLowerCase();
+      if (!isValidEmail(email)) {
+        await sendText(from, "Please enter a valid email address.");
+        return;
+      }
+
+      await completeProfileStep(
+        from,
+        "AWAITING_PROFILE_SCHOOL",
+        {
+          profile: {
+            ...(session.data.profile as Record<string, unknown>),
+            email,
+          },
+        },
+        formatProfilePrompt("3/7 School/Institution:"),
       );
       return;
     }
@@ -405,7 +437,7 @@ export const processIncomingMessage = async (
             school: body.trim(),
           },
         },
-        formatProfilePrompt("3/6 Faculty:"),
+        formatProfilePrompt("4/7 Faculty:"),
       );
       return;
     }
@@ -420,7 +452,7 @@ export const processIncomingMessage = async (
             faculty: body.trim(),
           },
         },
-        formatProfilePrompt("4/6 Department:"),
+        formatProfilePrompt("5/7 Department:"),
       );
       return;
     }
@@ -435,7 +467,7 @@ export const processIncomingMessage = async (
             department: body.trim().toUpperCase(),
           },
         },
-        formatProfilePrompt("5/6 Level:"),
+        formatProfilePrompt("6/7 Level:"),
       );
       return;
     }
@@ -459,7 +491,7 @@ export const processIncomingMessage = async (
             level,
           },
         },
-        formatProfilePrompt("6/6 Current CGPA:"),
+        formatProfilePrompt("7/7 Current CGPA:"),
       );
       return;
     }
@@ -473,6 +505,7 @@ export const processIncomingMessage = async (
 
       const profile = session.data.profile as {
         name: string;
+        email: string;
         school: string;
         faculty: string;
         department: string;
@@ -486,10 +519,13 @@ export const processIncomingMessage = async (
 
       const student = await upsertStudentProfile(from, {
         name: profile.name,
+        email: profile.email,
         school: profile.school,
         faculty: profile.faculty,
+        matricNumber: "",
         department: profile.department,
         level: profile.level,
+        semester: "first",
         currentCgpa: completedProfile.currentCgpa,
       });
 
@@ -770,11 +806,15 @@ export const processIncomingMessage = async (
     case "AWAITING_PROFILE_EDIT_FIELD": {
       const fieldMap: Record<string, string> = {
         name: "name",
+        email: "email",
         school: "school",
         institution: "school",
         faculty: "faculty",
+        matric: "matricNumber",
+        "matric number": "matricNumber",
         department: "department",
         level: "level",
+        semester: "semester",
         cgpa: "currentCgpa",
         "current cgpa": "currentCgpa",
       };
@@ -783,7 +823,7 @@ export const processIncomingMessage = async (
       if (!field) {
         await sendText(
           from,
-          "Reply with name, school, faculty, department, level, or cgpa.",
+          "Reply with name, email, school, faculty, matric number, department, level, semester, or cgpa.",
         );
         return;
       }
@@ -796,10 +836,13 @@ export const processIncomingMessage = async (
     case "AWAITING_PROFILE_EDIT_VALUE": {
       const field = session.data.editField as
         | "name"
+        | "email"
         | "school"
         | "faculty"
+        | "matricNumber"
         | "department"
         | "level"
+        | "semester"
         | "currentCgpa";
       let value: string | number = body.trim();
 
@@ -822,6 +865,20 @@ export const processIncomingMessage = async (
           return;
         }
         value = cgpa;
+      }
+
+      if (field === "semester") {
+        const semester = normalizeSemester(body);
+        if (!semester) {
+          await sendText(from, "Please reply with first or second semester.");
+          return;
+        }
+        value = semester;
+      }
+
+      if (field === "email" && !isValidEmail(`${value}`)) {
+        await sendText(from, "Please enter a valid email address.");
+        return;
       }
 
       await updateStudentProfileField(

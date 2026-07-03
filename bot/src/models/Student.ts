@@ -1,8 +1,9 @@
 import mongoose, { Document, Schema } from "mongoose";
 
 export interface IStudent extends Document {
-  phoneNumber: string; // WhatsApp number e.g. "whatsapp:+2348012345678"
+  phoneNumber: string; // Twilio WhatsApp sender e.g. "whatsapp:+2348012345678"
   name: string;
+  email: string;
   school: string;
   faculty: string;
   matricNumber: string;
@@ -26,6 +27,7 @@ const StudentSchema = new Schema<IStudent>(
   {
     phoneNumber: { type: String, required: true, unique: true },
     name: { type: String, default: "Student" },
+    email: { type: String, lowercase: true, trim: true },
     school: { type: String, trim: true },
     faculty: { type: String, trim: true },
     matricNumber: { type: String, trim: true },

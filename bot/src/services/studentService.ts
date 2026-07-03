@@ -2,11 +2,14 @@ import { IStudent, Student } from "../models/Student";
 
 export type StudentProfileInput = {
   name: string;
+  email: string;
   school: string;
   faculty: string;
   department: string;
-  level: string;
   currentCgpa: number;
+  matricNumber?: string;
+  level?: string;
+  semester?: "first" | "second";
 };
 
 export type AssignmentInput = {
@@ -17,10 +20,10 @@ export type AssignmentInput = {
 
 const requiredProfileFields = [
   "name",
+  "email",
   "school",
   "faculty",
   "department",
-  "level",
   "currentCgpa",
 ] as const;
 

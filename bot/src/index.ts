@@ -15,11 +15,10 @@ const PORT = process.env.PORT || 3000;
 app.use(morgan("dev"));
 app.use(cors());
 
-// Twilio sends application/x-www-form-urlencoded
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-// WhatsApp webhook
+// Twilio WhatsApp webhook
 app.use("/webhook", webhookRouter);
 
 // Internal API (used by admin panel)

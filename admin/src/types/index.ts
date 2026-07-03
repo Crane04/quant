@@ -46,6 +46,7 @@ export interface Student {
   _id: string;
   phoneNumber: string;
   name: string;
+  email?: string;
   school?: string;
   faculty?: string;
   matricNumber?: string;
@@ -69,10 +70,13 @@ export interface StudentsResponse {
 
 export type StudentUpdatePayload = Partial<{
   name: string;
+  email: string;
   school: string;
   faculty: string;
+  matricNumber: string;
   department: string;
   level: string;
+  semester: string;
   currentCgpa: number | string;
   targetCgpa: number | string;
 }>;

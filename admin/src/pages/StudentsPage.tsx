@@ -306,7 +306,7 @@ export default function StudentsPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-zinc-100 truncate max-w-[180px]">{student.name}</p>
-                          <p className="text-xs text-zinc-500 font-mono">{student.phoneNumber.replace("whatsapp:", "")}</p>
+                          <p className="text-xs text-zinc-500 font-mono">{student.phoneNumber.replace(/^whatsapp:/, "")}</p>
                         </div>
                       </div>
                     </td>
