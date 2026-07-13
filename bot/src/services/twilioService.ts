@@ -7,6 +7,7 @@ const client = twilio(
 );
 
 const FROM = process.env.TWILIO_WHATSAPP_NUMBER as string;
+const DOCUMENT_CONTENT_SID = process.env.TWILIO_DOCUMENT_CONTENT_SID as string;
 
 const assertTwilioConfig = (): void => {
   if (
@@ -28,12 +29,20 @@ export const sendText = async (to: string, body: string): Promise<void> => {
 export const sendPDF = async (to: string, doc: IDocument): Promise<void> => {
   assertTwilioConfig();
 
-  const baseUrl = process.env.APP_BASE_URL as string;
-  const viewUrl = `${baseUrl}/view/${doc.id}`;
+  if (!DOCUMENT_CONTENT_SID) {
+    throw new Error(
+      "Missing TWILIO_DOCUMENT_CONTENT_SID. Run `npm run create:document-template` once and add the printed ContentSid to .env.",
+    );
+  }
 
   await client.messages.create({
     from: FROM,
     to,
-    body: `*${doc.courseCode} - ${doc.title}*\n\nView it here: ${viewUrl}`,
+    contentSid: DOCUMENT_CONTENT_SID,
+    contentVariables: JSON.stringify({
+      "1": doc.courseCode,
+      "2": doc.title,
+      "3": doc.id,
+    }),
   });
 };

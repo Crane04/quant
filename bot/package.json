@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "import:drive": "ts-node src/scripts/importDriveDocuments.ts",
+    "create:document-template": "ts-node src/scripts/createDocumentTemplate.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },
