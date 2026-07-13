@@ -5,6 +5,7 @@ import morgan from "morgan";
 import { connectDB } from "./config/db";
 import apiRouter from "./routes/api";
 import webhookRouter from "./routes/webhook";
+import viewRouter from "./routes/view";
 import { ensureDefaultAdmin } from "./services/adminService";
 import { startAssignmentReminderScheduler } from "./services/reminderService";
 import { sendSuccess } from "./utils/apiResponse";
@@ -23,6 +24,9 @@ app.use("/webhook", webhookRouter);
 
 // Internal API (used by admin panel)
 app.use("/api/v1", apiRouter);
+
+// Public PDF viewer (opened inside WhatsApp's in-app browser)
+app.use("/view", viewRouter);
 
 app.get("/health", (_req, res) => {
   sendSuccess(res, { status: "ok", service: "quant-bot", ts: new Date().toISOString() });

@@ -26,12 +26,14 @@ export const sendText = async (to: string, body: string): Promise<void> => {
 };
 
 export const sendPDF = async (to: string, doc: IDocument): Promise<void> => {
-  await sendText(to, `Downloading ${doc.courseCode} ${doc.title}...`);
+  assertTwilioConfig();
+
+  const baseUrl = process.env.APP_BASE_URL as string;
+  const viewUrl = `${baseUrl}/view/${doc.id}`;
 
   await client.messages.create({
     from: FROM,
     to,
-    body: `*${doc.title}*`,
-    mediaUrl: [doc.cloudinaryUrl],
+    body: `*${doc.courseCode} - ${doc.title}*\n\nView it here: ${viewUrl}`,
   });
 };
