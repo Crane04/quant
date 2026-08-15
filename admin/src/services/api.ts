@@ -3,6 +3,8 @@ import {
   AdminRole,
   AdminsResponse,
   AdminUser,
+  CoursesResponse,
+  CourseRef,
   DocumentsResponse,
   LoginResponse,
   PDFDoc,
@@ -44,12 +46,12 @@ api.interceptors.response.use(
 
 export const loginAdmin = async (email: string, password: string): Promise<LoginResponse> => {
   const { data } = await api.post("/auth/login", { email, password });
-  return data;
+  return data.data;
 };
 
 export const fetchCurrentAdmin = async (): Promise<AdminUser> => {
   const { data } = await api.get("/auth/me");
-  return data.admin;
+  return data.data;
 };
 
 export const fetchDocuments = async (filters?: {
@@ -63,15 +65,24 @@ export const fetchDocuments = async (filters?: {
   return data;
 };
 
-export const uploadDocument = async (
-  file: File,
-  payload: UploadPayload
-): Promise<PDFDoc> => {
+export const fetchCourses = async (filters?: {
+  search?: string;
+  university?: string;
+  department?: string;
+  level?: string;
+  session?: string;
+  semester?: string;
+}): Promise<CoursesResponse> => {
+  const { data } = await api.get("/courses", { params: filters });
+  return data;
+};
+
+export const uploadDocument = async (file: File, payload: UploadPayload): Promise<PDFDoc> => {
   const form = new FormData();
   form.append("pdf", file);
-  Object.entries(payload).forEach(([k, v]) => form.append(k, v));
+  Object.entries(payload).forEach(([k, v]) => form.append(k, String(v)));
   const { data } = await api.post("/documents", form);
-  return data.document;
+  return data.data;
 };
 
 export const deleteDocument = async (id: string): Promise<void> => {
@@ -80,16 +91,15 @@ export const deleteDocument = async (id: string): Promise<void> => {
 
 export const updateDocument = async (
   id: string,
-  updates: Partial<UploadPayload>
+  updates: Partial<{ title: string; tags: string; courseId: string }>
 ): Promise<PDFDoc> => {
   const { data } = await api.patch(`/documents/${id}`, updates);
-  return data.document;
+  return data.data;
 };
 
 export const fetchStudents = async (filters?: {
   search?: string;
-  school?: string;
-  faculty?: string;
+  university?: string;
   department?: string;
   level?: string;
 }): Promise<StudentsResponse> => {
@@ -102,7 +112,7 @@ export const updateStudent = async (
   updates: StudentUpdatePayload
 ): Promise<Student> => {
   const { data } = await api.patch(`/students/${id}`, updates);
-  return data.student;
+  return data.data;
 };
 
 export const deleteStudent = async (id: string): Promise<void> => {
@@ -120,7 +130,7 @@ export const createAdmin = async (payload: {
   role: AdminRole;
 }): Promise<AdminUser> => {
   const { data } = await api.post("/admins", payload);
-  return data.admin;
+  return data.data;
 };
 
 export const updateAdmin = async (
@@ -128,9 +138,11 @@ export const updateAdmin = async (
   updates: Partial<{ role: AdminRole; isActive: boolean; password: string }>
 ): Promise<AdminUser> => {
   const { data } = await api.patch(`/admins/${id}`, updates);
-  return data.admin;
+  return data.data;
 };
 
 export const deleteAdmin = async (id: string): Promise<void> => {
   await api.delete(`/admins/${id}`);
 };
+
+export type { CourseRef };

@@ -65,7 +65,7 @@ export default function DocumentsPage() {
     onError: () => toast.error("Update failed"),
   });
 
-  const docs = data?.documents || [];
+  const docs = data?.data || [];
 
   const startEditing = (doc: PDFDoc) => {
     setConfirmDelete(null);
@@ -100,7 +100,7 @@ export default function DocumentsPage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-100">Documents</h1>
           <p className="text-sm text-zinc-500 mt-1">
-            {data?.count ?? 0} PDF{data?.count !== 1 ? "s" : ""} in the library
+            {docs.length} PDF{docs.length !== 1 ? "s" : ""} in the library
           </p>
         </div>
       </div>
@@ -244,19 +244,19 @@ export default function DocumentsPage() {
                   </td>
 
                   <td className="px-4 py-3">
-                    <p className="text-sm font-mono text-brand-400">{doc.courseCode}</p>
-                    <p className="text-xs text-zinc-500">{doc.courseName}</p>
+                    <p className="text-sm font-mono text-brand-400">{doc.course.code}</p>
+                    <p className="text-xs text-zinc-500">{doc.course.title}</p>
                   </td>
 
                   <td className="px-4 py-3">
                     <span className="text-xs bg-zinc-800 text-zinc-400 rounded px-2 py-1">
-                      {doc.level}L
+                      {doc.course.level}L
                     </span>
-                    <span className="ml-1.5 text-xs text-zinc-600 capitalize">{doc.semester}</span>
+                    <span className="ml-1.5 text-xs text-zinc-600 capitalize">{doc.course.semester}</span>
                   </td>
 
                   <td className="px-4 py-3 text-sm text-zinc-400">
-                    {formatBytes(doc.fileSize)}
+                    {formatBytes(doc.sizeBytes)}
                   </td>
 
                   <td className="px-4 py-3">
@@ -269,7 +269,7 @@ export default function DocumentsPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end">
                       <a
-                        href={doc.cloudinaryUrl}
+                        href={doc.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn-ghost p-2"

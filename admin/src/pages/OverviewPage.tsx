@@ -10,9 +10,9 @@ export default function OverviewPage() {
     queryFn: () => fetchDocuments(),
   });
 
-  const docs = data?.documents || [];
+  const docs = data?.data || [];
   const totalDownloads = docs.reduce((sum: number, d: PDFDoc) => sum + d.downloadCount, 0);
-  const uniqueCourses = new Set(docs.map((d: PDFDoc) => d.courseCode)).size;
+  const uniqueCourses = new Set(docs.map((d: PDFDoc) => d.course.code)).size;
 
   const recent = [...docs]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -34,7 +34,7 @@ export default function OverviewPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { label: "Total PDFs", value: data?.count ?? 0, icon: FileText, color: "text-blue-400", bg: "bg-blue-500/10" },
+          { label: "Total PDFs", value: docs.length, icon: FileText, color: "text-blue-400", bg: "bg-blue-500/10" },
           { label: "Total Downloads", value: totalDownloads, icon: Download, color: "text-green-400", bg: "bg-green-500/10" },
           { label: "Courses Covered", value: uniqueCourses, icon: BookOpen, color: "text-purple-400", bg: "bg-purple-500/10" },
         ].map(({ label, value, icon: Icon, color, bg }) => (
@@ -70,7 +70,7 @@ export default function OverviewPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-zinc-200 truncate">{doc.title}</p>
-                    <p className="text-xs text-zinc-500 font-mono">{doc.courseCode}</p>
+                    <p className="text-xs text-zinc-500 font-mono">{doc.course.code}</p>
                   </div>
                 </div>
               ))
@@ -90,7 +90,7 @@ export default function OverviewPage() {
                   <span className="text-xs font-mono text-zinc-600 w-4">{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-zinc-200 truncate">{doc.title}</p>
-                    <p className="text-xs text-zinc-500 font-mono">{doc.courseCode}</p>
+                    <p className="text-xs text-zinc-500 font-mono">{doc.course.code}</p>
                   </div>
                   <div className="flex items-center gap-1 text-xs text-zinc-500">
                     <Download size={11} />

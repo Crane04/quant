@@ -54,7 +54,7 @@ export default function AdminsPage() {
     onError: () => toast.error("Could not delete admin"),
   });
 
-  const admins = data?.admins || [];
+  const admins = data?.data || [];
 
   const handleCreate = (event: FormEvent) => {
     event.preventDefault();

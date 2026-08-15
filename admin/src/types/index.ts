@@ -1,84 +1,74 @@
+export interface CourseRef {
+  _id: string;
+  code: string;
+  title: string;
+  university: string;
+  department: string;
+  level: string;
+  session: string;
+  semester: "first" | "second";
+  creditUnits: number;
+}
+
 export interface PDFDoc {
   _id: string;
   title: string;
-  courseCode: string;
-  courseName: string;
-  faculty: string;
-  department: string;
-  level: "100" | "200" | "300" | "400" | "500";
-  semester: "first" | "second";
+  course: CourseRef;
+  fileUrl: string;
+  fileType: string;
+  sizeBytes: number;
   tags: string[];
-  cloudinaryUrl: string;
-  cloudinaryPublicId: string;
-  fileSize: number;
   downloadCount: number;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface UploadPayload {
+export type UploadPayload = {
   title: string;
-  courseCode: string;
-  courseName: string;
-  faculty: string;
-  department: string;
-  level: string;
-  semester: string;
   tags: string;
-}
+} & (
+  | { courseId: string }
+  | {
+      courseCode: string;
+      courseTitle: string;
+      university: string;
+      department: string;
+      level: string;
+      session: string;
+      semester: "first" | "second";
+      creditUnits: number;
+    }
+);
 
 export interface DocumentsResponse {
   success: boolean;
-  count: number;
-  documents: PDFDoc[];
-}
-
-export interface StudentAssignment {
-  _id?: string;
-  courseCode: string;
-  description: string;
-  dueDate: string;
-  reminderSent: boolean;
-  createdAt: string;
+  data: PDFDoc[];
 }
 
 export interface Student {
-  _id: string;
-  phoneNumber: string;
-  name: string;
-  email?: string;
-  school?: string;
-  faculty?: string;
-  matricNumber?: string;
-  department?: string;
-  level?: "100" | "200" | "300" | "400" | "500";
-  semester?: "first" | "second";
-  currentCgpa?: number;
-  targetCgpa?: number;
-  assignments?: StudentAssignment[];
-  registeredAt: string;
-  lastActive: string;
+  id: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  matricNumber: string;
+  university: string;
+  department: string;
+  level: string;
+  isPhoneVerified: boolean;
+  isEmailVerified: boolean;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface StudentsResponse {
   success: boolean;
-  count: number;
-  students: Student[];
+  data: Student[];
 }
 
 export type StudentUpdatePayload = Partial<{
-  name: string;
-  email: string;
-  school: string;
-  faculty: string;
-  matricNumber: string;
+  fullName: string;
+  university: string;
   department: string;
   level: string;
-  semester: string;
-  currentCgpa: number | string;
-  targetCgpa: number | string;
 }>;
 
 export type AdminRole = "super_admin" | "admin";
@@ -94,12 +84,16 @@ export interface AdminUser {
 }
 
 export interface LoginResponse {
-  success: boolean;
   token: string;
   admin: AdminUser;
 }
 
 export interface AdminsResponse {
   success: boolean;
-  admins: AdminUser[];
+  data: AdminUser[];
+}
+
+export interface CoursesResponse {
+  success: boolean;
+  data: CourseRef[];
 }

@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
-  CalendarClock,
+  CheckCircle2,
   GraduationCap,
   Loader2,
   Pencil,
@@ -10,6 +10,7 @@ import {
   Search,
   Trash2,
   UserRound,
+  XCircle,
   X,
 } from "lucide-react";
 import { deleteStudent, fetchStudents, updateStudent } from "../services/api";
@@ -17,28 +18,17 @@ import { Student, StudentUpdatePayload } from "../types";
 
 const LEVELS = ["", "100", "200", "300", "400", "500"];
 
-const editableFields = [
-  "name",
-  "school",
-  "faculty",
-  "department",
-  "level",
-  "currentCgpa",
-  "targetCgpa",
-] as const;
+const editableFields = ["fullName", "university", "department", "level"] as const;
 
 const getInitialForm = (student: Student): Record<(typeof editableFields)[number], string> => ({
-  name: student.name || "",
-  school: student.school || "",
-  faculty: student.faculty || "",
+  fullName: student.fullName || "",
+  university: student.university || "",
   department: student.department || "",
   level: student.level || "",
-  currentCgpa: student.currentCgpa?.toString() || "",
-  targetCgpa: student.targetCgpa?.toString() || "",
 });
 
 const formatDate = (value?: string) => {
-  if (!value) return "Never";
+  if (!value) return "Unknown";
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -46,20 +36,12 @@ const formatDate = (value?: string) => {
   }).format(new Date(value));
 };
 
-const buildUpdatePayload = (form: ReturnType<typeof getInitialForm>): StudentUpdatePayload => {
-  const payload: StudentUpdatePayload = {
-    name: form.name.trim(),
-    school: form.school.trim(),
-    faculty: form.faculty.trim(),
-    department: form.department.trim(),
-    level: form.level,
-  };
-
-  if (form.currentCgpa.trim()) payload.currentCgpa = form.currentCgpa;
-  if (form.targetCgpa.trim()) payload.targetCgpa = form.targetCgpa;
-
-  return payload;
-};
+const buildUpdatePayload = (form: ReturnType<typeof getInitialForm>): StudentUpdatePayload => ({
+  fullName: form.fullName.trim(),
+  university: form.university.trim(),
+  department: form.department.trim(),
+  level: form.level,
+});
 
 export default function StudentsPage() {
   const qc = useQueryClient();
@@ -102,11 +84,11 @@ export default function StudentsPage() {
     onError: () => toast.error("Could not delete student"),
   });
 
-  const students = data?.students || [];
+  const students = data?.data || [];
 
   const startEditing = (student: Student) => {
     setConfirmDelete(null);
-    setEditingId(student._id);
+    setEditingId(student.id);
     setForm(getInitialForm(student));
   };
 
@@ -119,12 +101,12 @@ export default function StudentsPage() {
     event.preventDefault();
 
     if (!form) return;
-    if (!form.name.trim()) {
+    if (!form.fullName.trim()) {
       toast.error("Name is required");
       return;
     }
 
-    updateMutation.mutate({ id: student._id, updates: buildUpdatePayload(form) });
+    updateMutation.mutate({ id: student.id, updates: buildUpdatePayload(form) });
   };
 
   return (
@@ -132,7 +114,7 @@ export default function StudentsPage() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-zinc-100">Students</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          {data?.count ?? 0} registered student{data?.count === 1 ? "" : "s"}
+          {students.length} registered student{students.length === 1 ? "" : "s"}
         </p>
       </div>
 
@@ -142,7 +124,7 @@ export default function StudentsPage() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search name, phone, school..."
+            placeholder="Search name, phone, email, matric no..."
             className="input pl-9"
           />
         </div>
@@ -183,46 +165,34 @@ export default function StudentsPage() {
               <tr className="border-b border-zinc-800">
                 <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Student</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Academic Profile</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">CGPA</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Assignments</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Last Active</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Verification</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Registered</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
               {students.map((student) => {
-                const isEditing = editingId === student._id;
-                const activeAssignments = (student.assignments || []).filter(
-                  (assignment) => new Date(assignment.dueDate) >= new Date()
-                );
+                const isEditing = editingId === student.id;
 
                 if (isEditing && form) {
                   return (
-                    <tr key={student._id} className="bg-zinc-800/20">
-                      <td colSpan={6} className="px-4 py-4">
-                        <form onSubmit={(event) => saveStudent(event, student)} className="grid grid-cols-8 gap-3 items-end">
+                    <tr key={student.id} className="bg-zinc-800/20">
+                      <td colSpan={5} className="px-4 py-4">
+                        <form onSubmit={(event) => saveStudent(event, student)} className="grid grid-cols-6 gap-3 items-end">
                           <div className="col-span-2">
                             <label className="label">Name</label>
                             <input
-                              value={form.name}
-                              onChange={(event) => setForm((current) => current && { ...current, name: event.target.value })}
+                              value={form.fullName}
+                              onChange={(event) => setForm((current) => current && { ...current, fullName: event.target.value })}
                               className="input"
                               autoFocus
                             />
                           </div>
                           <div>
-                            <label className="label">School</label>
+                            <label className="label">University</label>
                             <input
-                              value={form.school}
-                              onChange={(event) => setForm((current) => current && { ...current, school: event.target.value })}
-                              className="input"
-                            />
-                          </div>
-                          <div>
-                            <label className="label">Faculty</label>
-                            <input
-                              value={form.faculty}
-                              onChange={(event) => setForm((current) => current && { ...current, faculty: event.target.value })}
+                              value={form.university}
+                              onChange={(event) => setForm((current) => current && { ...current, university: event.target.value })}
                               className="input"
                             />
                           </div>
@@ -247,30 +217,6 @@ export default function StudentsPage() {
                                 </option>
                               ))}
                             </select>
-                          </div>
-                          <div>
-                            <label className="label">CGPA</label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="5"
-                              step="0.01"
-                              value={form.currentCgpa}
-                              onChange={(event) => setForm((current) => current && { ...current, currentCgpa: event.target.value })}
-                              className="input"
-                            />
-                          </div>
-                          <div>
-                            <label className="label">Target</label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="5"
-                              step="0.01"
-                              value={form.targetCgpa}
-                              onChange={(event) => setForm((current) => current && { ...current, targetCgpa: event.target.value })}
-                              className="input"
-                            />
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -298,15 +244,15 @@ export default function StudentsPage() {
                 }
 
                 return (
-                  <tr key={student._id} className="hover:bg-zinc-800/30 transition-colors">
+                  <tr key={student.id} className="hover:bg-zinc-800/30 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center">
                           <UserRound size={15} className="text-brand-400" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-zinc-100 truncate max-w-[180px]">{student.name}</p>
-                          <p className="text-xs text-zinc-500 font-mono">{student.phoneNumber.replace(/^whatsapp:/, "")}</p>
+                          <p className="text-sm font-medium text-zinc-100 truncate max-w-[180px]">{student.fullName}</p>
+                          <p className="text-xs text-zinc-500 font-mono">{student.phone}</p>
                         </div>
                       </div>
                     </td>
@@ -319,29 +265,23 @@ export default function StudentsPage() {
                         <span>{student.department || "No department"}</span>
                       </div>
                       <p className="text-xs text-zinc-500 mt-0.5">
-                        {student.school || "No school set"}
+                        {student.university || "No university set"} · {student.matricNumber}
                       </p>
                     </td>
 
                     <td className="px-4 py-3">
-                      <p className="text-sm text-zinc-300">
-                        {student.currentCgpa !== undefined ? student.currentCgpa.toFixed(2) : "Not set"}
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        Target {student.targetCgpa !== undefined ? student.targetCgpa.toFixed(2) : "not set"}
-                      </p>
-                    </td>
-
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 text-sm text-zinc-400">
-                        <CalendarClock size={14} />
-                        {activeAssignments.length} active
+                      <div className="flex items-center gap-3 text-xs">
+                        <span className={`flex items-center gap-1 ${student.isPhoneVerified ? "text-green-400" : "text-zinc-500"}`}>
+                          {student.isPhoneVerified ? <CheckCircle2 size={13} /> : <XCircle size={13} />} Phone
+                        </span>
+                        <span className={`flex items-center gap-1 ${student.isEmailVerified ? "text-green-400" : "text-zinc-500"}`}>
+                          {student.isEmailVerified ? <CheckCircle2 size={13} /> : <XCircle size={13} />} Email
+                        </span>
                       </div>
-                      <p className="text-xs text-zinc-600">{student.assignments?.length || 0} total</p>
                     </td>
 
                     <td className="px-4 py-3 text-sm text-zinc-400">
-                      {formatDate(student.lastActive)}
+                      {formatDate(student.createdAt)}
                     </td>
 
                     <td className="px-4 py-3">
@@ -355,11 +295,11 @@ export default function StudentsPage() {
                           <Pencil size={15} />
                         </button>
 
-                        {confirmDelete === student._id ? (
+                        {confirmDelete === student.id ? (
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
-                              onClick={() => deleteMutation.mutate(student._id)}
+                              onClick={() => deleteMutation.mutate(student.id)}
                               disabled={deleteMutation.isPending}
                               className="text-xs bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg px-2 py-1 transition"
                             >
@@ -376,7 +316,7 @@ export default function StudentsPage() {
                         ) : (
                           <button
                             type="button"
-                            onClick={() => setConfirmDelete(student._id)}
+                            onClick={() => setConfirmDelete(student.id)}
                             className="btn-danger p-2"
                             title="Delete student"
                           >

@@ -1,35 +1,48 @@
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
+import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Upload, FileText, X, CheckCircle2, Loader2 } from "lucide-react";
-import { uploadDocument } from "../services/api";
+import { Upload, FileText, X, CheckCircle2, Loader2, Search, PlusCircle } from "lucide-react";
+import { fetchCourses, uploadDocument } from "../services/api";
+import { CourseRef, UploadPayload } from "../types";
 
 const LEVELS = ["100", "200", "300", "400", "500"];
 
-const initialForm = {
-  title: "",
+const initialDocForm = { title: "", tags: "" };
+
+const initialNewCourseForm = {
   courseCode: "",
-  courseName: "",
-  faculty: "General",
+  courseTitle: "",
+  university: "",
   department: "",
   level: "",
+  session: "",
   semester: "",
-  tags: "",
+  creditUnits: "",
 };
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [form, setForm] = useState(typeof initialForm === "object" ? { ...initialForm } : initialForm);
+  const [docForm, setDocForm] = useState(initialDocForm);
+  const [mode, setMode] = useState<"existing" | "new">("existing");
+  const [courseSearch, setCourseSearch] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState<CourseRef | null>(null);
+  const [newCourseForm, setNewCourseForm] = useState(initialNewCourseForm);
   const [loading, setLoading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
+
+  const { data: courseResults, isFetching: searchingCourses } = useQuery({
+    queryKey: ["courses", "search", courseSearch],
+    queryFn: () => fetchCourses({ search: courseSearch }),
+    enabled: mode === "existing" && courseSearch.trim().length > 1,
+  });
 
   const onDrop = useCallback((accepted: File[]) => {
     if (accepted[0]) {
       setFile(accepted[0]);
       setUploaded(false);
-      // Auto-fill title from filename
       const name = accepted[0].name.replace(/\.pdf$/i, "").replace(/_/g, " ");
-      setForm((f) => ({ ...f, title: f.title || name }));
+      setDocForm((f) => ({ ...f, title: f.title || name }));
     }
   }, []);
 
@@ -40,26 +53,61 @@ export default function UploadPage() {
     maxSize: 50 * 1024 * 1024,
   });
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  const handleNewCourseChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setNewCourseForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  };
+
+  const resetForm = () => {
+    setDocForm(initialDocForm);
+    setNewCourseForm(initialNewCourseForm);
+    setSelectedCourse(null);
+    setCourseSearch("");
+    setMode("existing");
   };
 
   const handleSubmit = async () => {
     if (!file) return toast.error("Please select a PDF");
+    if (!docForm.title) return toast.error("title is required");
 
-    const required = ["title", "courseCode", "courseName", "department", "level", "semester"] as const;
-    for (const key of required) {
-      if (!form[key]) return toast.error(`${key} is required`);
+    let payload: UploadPayload;
+
+    if (mode === "existing") {
+      if (!selectedCourse) return toast.error("Select a course, or switch to \"New course\"");
+      payload = { title: docForm.title, tags: docForm.tags, courseId: selectedCourse._id };
+    } else {
+      const required = [
+        "courseCode",
+        "courseTitle",
+        "university",
+        "department",
+        "level",
+        "session",
+        "semester",
+        "creditUnits",
+      ] as const;
+      for (const key of required) {
+        if (!newCourseForm[key]) return toast.error(`${key} is required`);
+      }
+      payload = {
+        title: docForm.title,
+        tags: docForm.tags,
+        courseCode: newCourseForm.courseCode,
+        courseTitle: newCourseForm.courseTitle,
+        university: newCourseForm.university,
+        department: newCourseForm.department,
+        level: newCourseForm.level,
+        session: newCourseForm.session,
+        semester: newCourseForm.semester as "first" | "second",
+        creditUnits: Number(newCourseForm.creditUnits),
+      };
     }
 
     setLoading(true);
     try {
-      await uploadDocument(file, form);
+      await uploadDocument(file, payload);
       toast.success("PDF uploaded successfully!");
       setFile(null);
-      setForm({ ...initialForm });
+      resetForm();
       setUploaded(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Upload failed";
@@ -126,86 +174,191 @@ export default function UploadPage() {
           )}
         </div>
 
-        {/* Form */}
+        {/* Document details */}
         <div className="card p-6 space-y-4">
           <h2 className="text-sm font-medium text-zinc-300">Document Details</h2>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="label">Title *</label>
-              <input
-                name="title"
-                value={form.title}
-                onChange={handleChange}
-                placeholder="e.g. Fluid Mechanics Week 3 Lecture Notes"
-                className="input"
-              />
-            </div>
+          <div>
+            <label className="label">Title *</label>
+            <input
+              value={docForm.title}
+              onChange={(e) => setDocForm((f) => ({ ...f, title: e.target.value }))}
+              placeholder="e.g. Fluid Mechanics Week 3 Lecture Notes"
+              className="input"
+            />
+          </div>
 
-            <div>
-              <label className="label">Course Code *</label>
-              <input
-                name="courseCode"
-                value={form.courseCode}
-                onChange={handleChange}
-                placeholder="e.g. CVE 301"
-                className="input uppercase"
-              />
-            </div>
+          <div>
+            <label className="label">Tags</label>
+            <input
+              value={docForm.tags}
+              onChange={(e) => setDocForm((f) => ({ ...f, tags: e.target.value }))}
+              placeholder="week1, lecture, thermodynamics"
+              className="input"
+            />
+            <p className="text-xs text-zinc-600 mt-1">Comma-separated</p>
+          </div>
+        </div>
 
-            <div>
-              <label className="label">Course Name *</label>
-              <input
-                name="courseName"
-                value={form.courseName}
-                onChange={handleChange}
-                placeholder="e.g. Fluid Mechanics"
-                className="input"
-              />
-            </div>
-
-            <div>
-              <label className="label">Department *</label>
-              <input
-                name="department"
-                value={form.department}
-                onChange={handleChange}
-                placeholder="e.g. Computer Science"
-                className="input"
-              />
-            </div>
-
-            <div>
-              <label className="label">Level *</label>
-              <select name="level" value={form.level} onChange={handleChange} className="select">
-                <option value="">Select level</option>
-                {LEVELS.map((l) => (
-                  <option key={l} value={l}>{l} Level</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="label">Semester *</label>
-              <select name="semester" value={form.semester} onChange={handleChange} className="select">
-                <option value="">Select semester</option>
-                <option value="first">First Semester</option>
-                <option value="second">Second Semester</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="label">Tags</label>
-              <input
-                name="tags"
-                value={form.tags}
-                onChange={handleChange}
-                placeholder="week1, lecture, thermodynamics"
-                className="input"
-              />
-              <p className="text-xs text-zinc-600 mt-1">Comma-separated</p>
+        {/* Course */}
+        <div className="card p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium text-zinc-300">Course</h2>
+            <div className="flex items-center gap-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setMode("existing")}
+                className={`px-2.5 py-1 rounded-lg transition ${
+                  mode === "existing" ? "bg-brand-500/15 text-brand-400" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Existing course
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("new")}
+                className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1 ${
+                  mode === "new" ? "bg-brand-500/15 text-brand-400" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                <PlusCircle size={13} /> New course
+              </button>
             </div>
           </div>
+
+          {mode === "existing" ? (
+            <div>
+              <label className="label">Search by code or title *</label>
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input
+                  value={selectedCourse ? `${selectedCourse.code} — ${selectedCourse.title}` : courseSearch}
+                  onChange={(e) => {
+                    setSelectedCourse(null);
+                    setCourseSearch(e.target.value);
+                  }}
+                  placeholder="e.g. CVE 301"
+                  className="input pl-9"
+                />
+                {searchingCourses && (
+                  <Loader2 size={15} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                )}
+              </div>
+
+              {!selectedCourse && (courseResults?.data.length ?? 0) > 0 && (
+                <div className="mt-2 border border-zinc-800 rounded-lg divide-y divide-zinc-800/50 overflow-hidden">
+                  {courseResults!.data.map((course) => (
+                    <button
+                      type="button"
+                      key={course._id}
+                      onClick={() => {
+                        setSelectedCourse(course);
+                        setCourseSearch("");
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-zinc-800/50 transition"
+                    >
+                      <p className="text-sm text-zinc-200">
+                        {course.code} — {course.title}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {course.university} · {course.department} · {course.level}L · {course.session} ·{" "}
+                        {course.semester}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Course Code *</label>
+                <input
+                  name="courseCode"
+                  value={newCourseForm.courseCode}
+                  onChange={handleNewCourseChange}
+                  placeholder="e.g. CVE 301"
+                  className="input uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="label">Course Title *</label>
+                <input
+                  name="courseTitle"
+                  value={newCourseForm.courseTitle}
+                  onChange={handleNewCourseChange}
+                  placeholder="e.g. Fluid Mechanics"
+                  className="input"
+                />
+              </div>
+
+              <div>
+                <label className="label">University *</label>
+                <input
+                  name="university"
+                  value={newCourseForm.university}
+                  onChange={handleNewCourseChange}
+                  placeholder="e.g. University of Lagos"
+                  className="input"
+                />
+              </div>
+
+              <div>
+                <label className="label">Department *</label>
+                <input
+                  name="department"
+                  value={newCourseForm.department}
+                  onChange={handleNewCourseChange}
+                  placeholder="e.g. Computer Science"
+                  className="input"
+                />
+              </div>
+
+              <div>
+                <label className="label">Level *</label>
+                <select name="level" value={newCourseForm.level} onChange={handleNewCourseChange} className="select">
+                  <option value="">Select level</option>
+                  {LEVELS.map((l) => (
+                    <option key={l} value={l}>{l} Level</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="label">Semester *</label>
+                <select name="semester" value={newCourseForm.semester} onChange={handleNewCourseChange} className="select">
+                  <option value="">Select semester</option>
+                  <option value="first">First Semester</option>
+                  <option value="second">Second Semester</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="label">Session *</label>
+                <input
+                  name="session"
+                  value={newCourseForm.session}
+                  onChange={handleNewCourseChange}
+                  placeholder="e.g. 2025/2026"
+                  className="input"
+                />
+              </div>
+
+              <div>
+                <label className="label">Credit Units *</label>
+                <input
+                  name="creditUnits"
+                  type="number"
+                  min="1"
+                  value={newCourseForm.creditUnits}
+                  onChange={handleNewCourseChange}
+                  placeholder="e.g. 3"
+                  className="input"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Submit */}

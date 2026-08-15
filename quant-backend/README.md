@@ -1,0 +1,122 @@
+# Quant Backend API
+
+Backend API for **Quant** — a WhatsApp academic assistant (lecture summaries,
+assignment reminders, PDFs, timetable access, CGPA tracking). This repo is
+**API only**: the WhatsApp bot and web dashboard are separate codebases that
+consume this API.
+
+Stack: TypeScript, Express, MongoDB (Mongoose), Zod.
+
+## Getting started
+
+```bash
+npm install
+cp .env.example .env   # fill in MONGO_URI, BOT_SERVICE_API_KEY, etc.
+npm run dev
+```
+
+Health check: `GET /health`. All routes are mounted under `/api/v1`.
+
+## How auth works
+
+Two different callers hit this API, so there are two auth paths:
+
+1. **A student's own client** (e.g. a future web dashboard) — standard
+   phone+OTP flow issuing an opaque, DB-backed session token (`src/models/Session.ts`,
+   `src/utils/session.ts`) — not a JWT, so it's instantly revocable by deleting
+   the session row instead of waiting out an expiry or tracking a token version:
+   - `POST /auth/register` → creates the student, sends OTP to phone (WhatsApp) and email
+   - `POST /auth/verify-phone`, `POST /auth/verify-email`
+   - `POST /auth/login/request-otp`, `POST /auth/login/verify-otp` → returns `token`
+   - `POST /auth/logout` → revokes all of the student's sessions
+   - Authenticated requests: `Authorization: Bearer <token>`
+   - Session lifetime: `STUDENT_SESSION_EXPIRES_IN` (default 30d)
+
+2. **The WhatsApp bot process** — it already knows who it's talking to (the
+   sender's WhatsApp number), so it doesn't need a session token. It
+   authenticates with a shared secret instead:
+   - Header: `x-api-key: <BOT_SERVICE_API_KEY>`
+   - Pass the student's `phone` in the query string or body on any `/mine`-style
+     route, and the API resolves it to a student for you.
+
+Both paths are handled by the same `resolveStudentContext` middleware
+(`src/middleware/resolveStudentContext.ts`), so "my timetable" / "my
+assignments" / "my CGPA" endpoints work identically for either caller.
+
+Catalogue-mutating routes (creating courses, timetable slots, assignments,
+lecture summaries, documents) are gated behind `requireBotApiKey` for now —
+treat that as a generic "trusted service" key until you build a real admin
+role. See the `TODO` comments in `src/routes/courseRoutes.ts` etc.
+
+## Data model
+
+| Model | Purpose |
+|---|---|
+| `Student` | phone (WhatsApp identity), email, matric number, verification flags |
+| `Admin` | email+password dashboard admin, role (`super_admin`/`admin`) |
+| `Session` | opaque session token (hashed) for a Student or Admin; TTL-indexed, auto-expires |
+| `OtpVerification` | short-lived OTP codes (TTL-indexed, auto-expires) |
+| `Course` | catalogue entry: code, title, university, department, level, session, semester |
+| `StudentCourse` | enrollment — links a student to courses for a session/semester |
+| `TimetableSlot` | a course's weekly recurring slot (day, time, venue) |
+| `Assignment` | belongs to a course; has a due date |
+| `StudentAssignmentStatus` | per-student completion tracking for an assignment |
+| `LectureSummary` | text summary tied to a course |
+| `DocumentFile` | metadata + URL for a PDF/other file tied to a course |
+| `GradeRecord` | one course grade for a student in a session/semester; feeds CGPA |
+
+## Key endpoints
+
+```
+POST   /api/v1/auth/register
+POST   /api/v1/auth/verify-phone
+POST   /api/v1/auth/verify-email
+POST   /api/v1/auth/login/request-otp
+POST   /api/v1/auth/login/verify-otp
+POST   /api/v1/auth/logout
+
+GET    /api/v1/students/me
+PATCH  /api/v1/students/me
+
+GET    /api/v1/courses
+GET    /api/v1/courses/mine
+POST   /api/v1/courses/enroll
+POST   /api/v1/courses            (trusted service)
+
+GET    /api/v1/timetable/mine?session=&semester=
+GET    /api/v1/timetable/course/:courseId
+POST   /api/v1/timetable          (trusted service)
+
+GET    /api/v1/assignments/mine?session=&semester=&status=pending|completed|all
+GET    /api/v1/assignments/upcoming-reminders?hours=24   (trusted service — bot polls this)
+POST   /api/v1/assignments/:id/status   { completed: true }
+POST   /api/v1/assignments        (trusted service)
+
+GET    /api/v1/lecture-summaries/mine?session=&semester=
+GET    /api/v1/lecture-summaries/course/:courseId
+POST   /api/v1/lecture-summaries  (trusted service)
+
+GET    /api/v1/documents/mine?session=&semester=
+GET    /api/v1/documents/course/:courseId
+POST   /api/v1/documents          (trusted service)
+
+GET    /api/v1/grades/mine
+GET    /api/v1/grades/mine/cgpa
+POST   /api/v1/grades
+```
+
+## Things left for you to wire up
+
+- **WhatsApp OTP delivery**: `src/services/waService.ts` sends via the Meta
+  Cloud API using a free-form text message. Outside Meta's 24h session
+  window you'll need an approved template message instead — swap it in there.
+- **File uploads**: `DocumentFile` stores a `fileUrl`, it doesn't handle byte
+  upload. Point `fileUrl` at wherever you're hosting PDFs (S3, etc.) — the
+  `.env.example` has placeholders for S3 config if you want to add a
+  presigned-URL upload endpoint later.
+- **Reminders**: nothing sends reminders on a schedule — that's the bot's
+  job. It should poll `GET /assignments/upcoming-reminders` (or you can add
+  a cron/queue here later) and message students itself.
+- **Admin/trusted-service auth**: right now `requireBotApiKey` is one shared
+  secret for both "the bot" and "whoever manages the course catalogue."
+  Split these into separate keys/roles once you have an admin tool.
