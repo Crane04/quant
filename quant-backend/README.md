@@ -28,7 +28,7 @@ Two different callers hit this API, so there are two auth paths:
    - `POST /auth/register` → creates the student (with a password) and sends an
      email OTP for email verification
    - `POST /auth/verify-phone`, `POST /auth/verify-email` — account verification only
-   - `POST /auth/login` → email + password, returns `token` (ambassadors only)
+   - `POST /auth/student-login` → email + password, returns `token` (ambassadors only)
    - `POST /auth/logout` → revokes all of the student's sessions
    - Authenticated requests: `Authorization: Bearer <token>`
    - Session lifetime: `STUDENT_SESSION_EXPIRES_IN` (default 30d)
@@ -72,7 +72,7 @@ role. See the `TODO` comments in `src/routes/courseRoutes.ts` etc.
 POST   /api/v1/auth/register
 POST   /api/v1/auth/verify-phone
 POST   /api/v1/auth/verify-email
-POST   /api/v1/auth/login
+POST   /api/v1/auth/student-login
 POST   /api/v1/auth/logout
 
 GET    /api/v1/students/me

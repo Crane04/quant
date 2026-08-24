@@ -122,7 +122,7 @@ router.post("/verify-email", validate({ body: verifyEmailSchema }), authControll
 
 /**
  * @openapi
- * /auth/login:
+ * /auth/student-login:
  *   post:
  *     tags: [Auth]
  *     summary: Log in with email and password and issue a session token (web portal, ambassadors only)
@@ -158,7 +158,7 @@ router.post("/verify-email", validate({ body: verifyEmailSchema }), authControll
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       400: { $ref: '#/components/responses/BadRequest' }
  */
-router.post("/login", validate({ body: loginSchema }), authController.login);
+router.post("/student-login", validate({ body: loginSchema }), authController.login);
 
 /**
  * @openapi
