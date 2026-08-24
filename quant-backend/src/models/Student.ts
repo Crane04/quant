@@ -25,6 +25,7 @@ const studentSchema = new Schema(
       trim: true,
       uppercase: true,
     },
+    passwordHash: { type: String, required: true },
     university: { type: String, required: true, trim: true },
     department: { type: String, required: true, trim: true },
     level: { type: String, required: true, trim: true }, // e.g. "300"

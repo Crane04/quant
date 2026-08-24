@@ -21,13 +21,14 @@ Health check: `GET /health`. All routes are mounted under `/api/v1`.
 
 Two different callers hit this API, so there are two auth paths:
 
-1. **A student's own client** (e.g. a future web dashboard) — standard
-   phone+OTP flow issuing an opaque, DB-backed session token (`src/models/Session.ts`,
+1. **A student's own client** (e.g. a future web dashboard) — email+password
+   login issuing an opaque, DB-backed session token (`src/models/Session.ts`,
    `src/utils/session.ts`) — not a JWT, so it's instantly revocable by deleting
    the session row instead of waiting out an expiry or tracking a token version:
-   - `POST /auth/register` → creates the student, sends OTP to phone (WhatsApp) and email
-   - `POST /auth/verify-phone`, `POST /auth/verify-email`
-   - `POST /auth/login/request-otp`, `POST /auth/login/verify-otp` → returns `token`
+   - `POST /auth/register` → creates the student (with a password) and sends an
+     email OTP for email verification
+   - `POST /auth/verify-phone`, `POST /auth/verify-email` — account verification only
+   - `POST /auth/login` → email + password, returns `token` (ambassadors only)
    - `POST /auth/logout` → revokes all of the student's sessions
    - Authenticated requests: `Authorization: Bearer <token>`
    - Session lifetime: `STUDENT_SESSION_EXPIRES_IN` (default 30d)
@@ -52,7 +53,7 @@ role. See the `TODO` comments in `src/routes/courseRoutes.ts` etc.
 
 | Model | Purpose |
 |---|---|
-| `Student` | phone (WhatsApp identity), email, matric number, verification flags |
+| `Student` | phone (WhatsApp identity), email+password, matric number, verification flags |
 | `Admin` | email+password dashboard admin, role (`super_admin`/`admin`) |
 | `Session` | opaque session token (hashed) for a Student or Admin; TTL-indexed, auto-expires |
 | `OtpVerification` | short-lived OTP codes (TTL-indexed, auto-expires) |
@@ -71,8 +72,7 @@ role. See the `TODO` comments in `src/routes/courseRoutes.ts` etc.
 POST   /api/v1/auth/register
 POST   /api/v1/auth/verify-phone
 POST   /api/v1/auth/verify-email
-POST   /api/v1/auth/login/request-otp
-POST   /api/v1/auth/login/verify-otp
+POST   /api/v1/auth/login
 POST   /api/v1/auth/logout
 
 GET    /api/v1/students/me

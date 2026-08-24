@@ -7,8 +7,7 @@ import {
   registerSchema,
   verifyPhoneSchema,
   verifyEmailSchema,
-  requestLoginOtpSchema,
-  verifyLoginOtpSchema,
+  loginSchema,
 } from "../validators/authValidators";
 
 const router = Router();
@@ -31,11 +30,12 @@ const router = Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [fullName, phone, email, matricNumber, university, department, level]
+ *             required: [fullName, phone, email, password, matricNumber, university, department, level]
  *             properties:
  *               fullName: { type: string }
  *               phone: { type: string, example: "+2348012345678" }
  *               email: { type: string, format: email }
+ *               password: { type: string, format: password, minLength: 6 }
  *               matricNumber: { type: string }
  *               university: { type: string }
  *               department: { type: string }
@@ -122,10 +122,10 @@ router.post("/verify-email", validate({ body: verifyEmailSchema }), authControll
 
 /**
  * @openapi
- * /auth/login/request-otp:
+ * /auth/login:
  *   post:
  *     tags: [Auth]
- *     summary: Request a login OTP (web portal, ambassadors only)
+ *     summary: Log in with email and password and issue a session token (web portal, ambassadors only)
  *     description: >
  *       Requires a fully verified account. Rejects with 403 if the student isn't an
  *       ambassador — the web portal login is ambassador-only.
@@ -135,35 +135,10 @@ router.post("/verify-email", validate({ body: verifyEmailSchema }), authControll
  *         application/json:
  *           schema:
  *             type: object
- *             required: [phone]
- *             properties: { phone: { type: string, example: "+2348012345678" } }
- *     responses:
- *       200: { description: OTP sent, content: { application/json: { schema: { $ref: '#/components/schemas/SuccessMessage' } } } }
- *       403: { $ref: '#/components/responses/Forbidden' }
- *       404: { $ref: '#/components/responses/NotFound' }
- */
-router.post(
-  "/login/request-otp",
-  validate({ body: requestLoginOtpSchema }),
-  authController.requestLoginOtp
-);
-
-/**
- * @openapi
- * /auth/login/verify-otp:
- *   post:
- *     tags: [Auth]
- *     summary: Verify the login OTP and issue a session token (web portal, ambassadors only)
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [phone, code]
+ *             required: [email, password]
  *             properties:
- *               phone: { type: string, example: "+2348012345678" }
- *               code: { type: string, example: "123456" }
+ *               email: { type: string, format: email }
+ *               password: { type: string, format: password }
  *     responses:
  *       200:
  *         description: Session token issued
@@ -179,14 +154,11 @@ router.post(
  *                       properties:
  *                         token: { type: string }
  *                         student: { $ref: '#/components/schemas/Student' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       400: { $ref: '#/components/responses/BadRequest' }
  */
-router.post(
-  "/login/verify-otp",
-  validate({ body: verifyLoginOtpSchema }),
-  authController.verifyLoginOtp
-);
+router.post("/login", validate({ body: loginSchema }), authController.login);
 
 /**
  * @openapi

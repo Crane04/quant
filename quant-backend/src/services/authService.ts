@@ -4,6 +4,7 @@ import { env } from "../config/env";
 import { parseDuration } from "../utils/duration";
 import { createSession, revokeAllSessions as revokeActorSessions } from "../utils/session";
 import { issueOtp, verifyOtp } from "./otpService";
+import { hashPassword, verifyPassword } from "../utils/password";
 
 export interface StudentSessionPayload {
   sub: string;
@@ -14,6 +15,7 @@ interface RegisterInput {
   fullName: string;
   phone: string;
   email: string;
+  password: string;
   matricNumber: string;
   university: string;
   department: string;
@@ -28,10 +30,13 @@ export async function registerStudent(input: RegisterInput, isBotOrigin = false)
     throw ApiError.conflict("An account with this phone, email, or matric number already exists");
   }
 
+  const { password, ...rest } = input;
+  const passwordHash = await hashPassword(password);
+
   // The bot already knows this phone is real — it's the WhatsApp number the student is
   // chatting from — so it's marked verified without an OTP round-trip. The web onboarding
   // flow doesn't verify phone at all: create account -> verify email -> login.
-  const student = await Student.create({ ...input, isPhoneVerified: isBotOrigin });
+  const student = await Student.create({ ...rest, passwordHash, isPhoneVerified: isBotOrigin });
 
   await issueOtp(student.email, "email", "email_verification");
 
@@ -60,22 +65,16 @@ export async function verifyEmail(email: string, code: string): Promise<StudentD
   return student;
 }
 
-export async function requestLoginOtp(phone: string): Promise<void> {
-  const student = await Student.findOne({ phone });
-  if (!student) throw ApiError.notFound("No account found for this phone number");
+export async function login(email: string, password: string) {
+  const student = await Student.findOne({ email: email.toLowerCase().trim() });
+  if (!student) throw ApiError.unauthorized("Invalid email or password");
+
+  const isValidPassword = await verifyPassword(password, student.passwordHash);
+  if (!isValidPassword) throw ApiError.unauthorized("Invalid email or password");
+
   if (!student.isEmailVerified) {
     throw ApiError.forbidden("Complete email verification before logging in");
   }
-  if (!student.isAmbassador) {
-    throw ApiError.forbidden("The web portal is available to ambassadors only");
-  }
-  await issueOtp(phone, "phone", "login");
-}
-
-export async function verifyLoginOtp(phone: string, code: string) {
-  await verifyOtp(phone, "login", code);
-  const student = await Student.findOne({ phone });
-  if (!student) throw ApiError.notFound("Student not found");
   if (!student.isAmbassador) {
     throw ApiError.forbidden("The web portal is available to ambassadors only");
   }

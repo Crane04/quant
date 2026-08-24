@@ -20,13 +20,8 @@ export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, toStudentDTO(student));
 });
 
-export const requestLoginOtp = asyncHandler(async (req: Request, res: Response) => {
-  await authService.requestLoginOtp(req.body.phone);
-  sendSuccess(res, undefined, "Login code sent");
-});
-
-export const verifyLoginOtp = asyncHandler(async (req: Request, res: Response) => {
-  const { token, student } = await authService.verifyLoginOtp(req.body.phone, req.body.code);
+export const login = asyncHandler(async (req: Request, res: Response) => {
+  const { token, student } = await authService.login(req.body.email, req.body.password);
   sendSuccess(res, { token, student: toStudentDTO(student) });
 });
 

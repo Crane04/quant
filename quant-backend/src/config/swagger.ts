@@ -19,7 +19,7 @@ const options: swaggerJsdoc.Options = {
           type: "http",
           scheme: "bearer",
           bearerFormat: "session token",
-          description: "A student's own session token from POST /auth/login/verify-otp (ambassadors only).",
+          description: "A student's own session token from POST /auth/login (ambassadors only).",
         },
         adminSession: {
           type: "http",

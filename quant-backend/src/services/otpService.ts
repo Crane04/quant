@@ -6,7 +6,7 @@ import { sendWhatsAppText } from "./waService";
 import { sendMail } from "./mailService";
 
 type Channel = "phone" | "email";
-type Purpose = "registration" | "login" | "email_verification";
+type Purpose = "registration" | "email_verification";
 
 const MAX_ATTEMPTS = 5;
 

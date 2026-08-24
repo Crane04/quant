@@ -1,7 +1,7 @@
-import bcrypt from "bcryptjs";
 import { Admin, AdminDoc, AdminRole } from "../models/Admin";
 import { env } from "../config/env";
 import { logger } from "../utils/logger";
+import { hashPassword, verifyPassword } from "../utils/password";
 
 export type SafeAdmin = {
   id: string;
@@ -13,8 +13,6 @@ export type SafeAdmin = {
   updatedAt?: Date;
 };
 
-const PASSWORD_SALT_ROUNDS = 12;
-
 export function toSafeAdmin(admin: AdminDoc): SafeAdmin {
   return {
     id: admin._id.toString(),
@@ -25,14 +23,6 @@ export function toSafeAdmin(admin: AdminDoc): SafeAdmin {
     createdAt: admin.createdAt,
     updatedAt: admin.updatedAt,
   };
-}
-
-export function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, PASSWORD_SALT_ROUNDS);
-}
-
-export function verifyPassword(password: string, passwordHash: string): Promise<boolean> {
-  return bcrypt.compare(password, passwordHash);
 }
 
 export async function ensureDefaultAdmin(): Promise<void> {

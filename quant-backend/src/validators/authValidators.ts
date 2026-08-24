@@ -7,6 +7,7 @@ export const registerSchema = z.object({
   fullName: z.string().min(2).max(100),
   phone,
   email: z.string().email(),
+  password: z.string().min(6).max(100),
   matricNumber: z.string().min(3).max(30),
   university: z.string().min(2).max(150),
   department: z.string().min(2).max(150),
@@ -23,11 +24,7 @@ export const verifyEmailSchema = z.object({
   code: otpCode,
 });
 
-export const requestLoginOtpSchema = z.object({
-  phone,
-});
-
-export const verifyLoginOtpSchema = z.object({
-  phone,
-  code: otpCode,
+export const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
 });
