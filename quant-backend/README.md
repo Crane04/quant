@@ -63,8 +63,45 @@ role. See the `TODO` comments in `src/routes/courseRoutes.ts` etc.
 | `Assignment` | belongs to a course; has a due date |
 | `StudentAssignmentStatus` | per-student completion tracking for an assignment |
 | `LectureSummary` | text summary tied to a course |
-| `DocumentFile` | metadata + URL for a PDF/other file tied to a course |
+| `DocumentFile` | metadata + URL for a PDF/other file tied to a course; category + review status drive points |
 | `GradeRecord` | one course grade for a student in a session/semester; feeds CGPA |
+| `PointsTransaction` | ledger entry (earn/spend) behind a student's points balance |
+| `Badge` / `StudentBadge` | the fixed 12-badge catalog, and which ones a student has earned |
+| `Reward` / `RewardRedemption` | the fixed rewards catalog, and each student's redemption history |
+| `Announcement` | a lecture alert or general announcement posted by an ambassador (HOC Hub) |
+
+## Gamification (points, badges, rewards, leaderboard, HOC Hub)
+
+Points only exist for ambassadors, and only come from **approved** document
+uploads:
+
+1. A student uploads via `POST /documents/mine` with a `category`
+   (`lecture_note` / `exam_summary` / `past_question` / `other`) — it lands as
+   `status: "pending"` and earns nothing yet.
+2. An admin reviews it via `PATCH /documents/:id/review`. Approving calls
+   `pointsService.awardPointsForApprovedDocument` (category-rate points +
+   upload-streak bump) and `badgeService.evaluateBadgesForStudent` (checks all
+   12 badge criteria, awards any newly met + their bonus points). Rejecting
+   just records a reason — no points.
+3. Points feed the leaderboard (`GET /leaderboard`, ambassadors only) and can
+   be spent via `POST /rewards/:id/redeem` — deducted only on success, never
+   on a validation failure (insufficient points / missing size).
+4. `tokens` is a *separate* balance from `points` — some rewards convert
+   points into tokens, but tokens aren't currently spendable anywhere else in
+   this API.
+
+The badge catalog and reward catalog are fixed, seeded on startup
+(`ensureDefaultBadges`/`ensureDefaultRewards` in `src/server.ts`), and
+upserted by a stable `key` — editing `DEFAULT_BADGES`/`DEFAULT_REWARDS` and
+redeploying is how you change them, there's no admin CRUD UI for either yet.
+
+The HOC (ambassador) Hub is a student-authored broadcast, gated by
+`requireAmbassador`: `POST /announcements` creates a `lecture_alert` (tied to
+a course/timetable slot) or a general `announcement`, scoped to the
+ambassador's own (university, department, level). Every student in that
+scope sees it via `GET /announcements/mine`; the bot polls
+`GET /announcements/unsent` and calls `POST /announcements/:id/mark-sent`
+once delivered over WhatsApp — same pattern as assignment reminders.
 
 ## Key endpoints
 
@@ -97,12 +134,32 @@ GET    /api/v1/lecture-summaries/course/:courseId
 POST   /api/v1/lecture-summaries  (trusted service)
 
 GET    /api/v1/documents/mine?session=&semester=
+POST   /api/v1/documents/mine     (ambassadors only — category required)
 GET    /api/v1/documents/course/:courseId
-POST   /api/v1/documents          (trusted service)
+GET    /api/v1/documents?status=pending&...   (admin — review queue)
+PATCH  /api/v1/documents/:id/review   { status: approved|rejected }   (admin)
+POST   /api/v1/documents          (admin — auto-approved, no review)
 
 GET    /api/v1/grades/mine
 GET    /api/v1/grades/mine/cgpa
 POST   /api/v1/grades
+
+GET    /api/v1/points/mine
+GET    /api/v1/points/mine/history?limit=
+
+GET    /api/v1/leaderboard?limit=
+
+GET    /api/v1/badges/mine
+
+GET    /api/v1/rewards
+POST   /api/v1/rewards/:id/redeem   { size? }
+GET    /api/v1/rewards/mine/history
+GET    /api/v1/rewards/redemptions   (admin)
+
+POST   /api/v1/announcements   (ambassadors only — lecture_alert or announcement)
+GET    /api/v1/announcements/mine?type=
+GET    /api/v1/announcements/unsent   (trusted service — bot polls this)
+POST   /api/v1/announcements/:id/mark-sent   (trusted service)
 ```
 
 ## Things left for you to wire up

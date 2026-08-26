@@ -4,6 +4,7 @@ import { sendSuccess } from "../utils/apiResponse";
 import { Student } from "../models/Student";
 import { ApiError } from "../utils/ApiError";
 import { toStudentDTO } from "../dto/studentDTO";
+import { evaluateBadgesForStudent } from "../services/badgeService";
 
 export const getMe = asyncHandler(async (req: Request, res: Response) => {
   const student = await Student.findById(req.studentId);
@@ -43,6 +44,9 @@ export const getStudentById = asyncHandler(async (req: Request, res: Response) =
 export const updateStudentById = asyncHandler(async (req: Request, res: Response) => {
   const student = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true });
   if (!student) throw ApiError.notFound("Student not found");
+  if (req.body.isVerifiedContributor === true) {
+    await evaluateBadgesForStudent(student._id.toString());
+  }
   sendSuccess(res, toStudentDTO(student));
 });
 

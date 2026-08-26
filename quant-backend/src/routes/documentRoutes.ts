@@ -4,7 +4,12 @@ import { resolveStudentContext } from "../middleware/resolveStudentContext";
 import { validate } from "../middleware/validate";
 import { upload } from "../middleware/upload";
 import * as controller from "../controllers/documentController";
-import { createDocumentSchema, updateDocumentSchema } from "../validators/documentValidators";
+import {
+  createDocumentSchema,
+  updateDocumentSchema,
+  reviewDocumentSchema,
+  listDocumentsQuerySchema,
+} from "../validators/documentValidators";
 import { myTimetableQuerySchema } from "../validators/timetableValidators";
 
 const router = Router();
@@ -49,10 +54,11 @@ router.get("/mine", resolveStudentContext, validate({ query: myTimetableQuerySch
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required: [pdf, title]
+ *             required: [pdf, title, category]
  *             properties:
  *               pdf: { type: string, format: binary }
  *               title: { type: string }
+ *               category: { type: string, enum: [lecture_note, exam_summary, past_question, other], description: "Drives the points rate; see /documents/mine POST" }
  *               courseId: { type: string, description: "Existing course id" }
  *               courseCode: { type: string, description: "Or create a new course inline with these fields" }
  *               courseTitle: { type: string }
@@ -119,6 +125,7 @@ router.get("/course/:courseId", controller.getCourseDocuments);
  *       - { name: department, in: query, schema: { type: string } }
  *       - { name: semester, in: query, schema: { type: string, enum: [first, second] } }
  *       - { name: search, in: query, schema: { type: string } }
+ *       - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected] }, description: "e.g. status=pending for the review queue" }
  *     responses:
  *       200:
  *         description: Documents
@@ -131,7 +138,12 @@ router.get("/course/:courseId", controller.getCourseDocuments);
  *                   properties: { data: { type: array, items: { $ref: '#/components/schemas/DocumentFile' } } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
-router.get("/", requireAdminAuth, controller.listDocuments);
+router.get(
+  "/",
+  requireAdminAuth,
+  validate({ query: listDocumentsQuerySchema }),
+  controller.listDocuments
+);
 
 /**
  * @openapi
@@ -170,10 +182,11 @@ router.get("/:id", requireAdminAuth, controller.getDocument);
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required: [pdf, title]
+ *             required: [pdf, title, category]
  *             properties:
  *               pdf: { type: string, format: binary }
  *               title: { type: string }
+ *               category: { type: string, enum: [lecture_note, exam_summary, past_question, other] }
  *               courseId: { type: string }
  *               courseCode: { type: string }
  *               courseTitle: { type: string }
@@ -241,6 +254,50 @@ router.patch(
   requireAdminAuth,
   validate({ body: updateDocumentSchema }),
   controller.updateDocument
+);
+
+/**
+ * @openapi
+ * /documents/{id}/review:
+ *   patch:
+ *     tags: [Documents]
+ *     summary: Approve or reject a student upload (admin)
+ *     description: >
+ *       Approving credits the uploader's points for the document's category, bumps
+ *       their upload streak, and re-evaluates their badges. Only valid on
+ *       student-uploaded documents that are still pending.
+ *     security: [{ adminSession: [] }]
+ *     parameters:
+ *       - { name: id, in: path, required: true, schema: { type: string } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status: { type: string, enum: [approved, rejected] }
+ *               rejectionReason: { type: string }
+ *     responses:
+ *       200:
+ *         description: Document reviewed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessMessage'
+ *                 - type: object
+ *                   properties: { data: { $ref: '#/components/schemas/DocumentFile' } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ */
+router.patch(
+  "/:id/review",
+  requireAdminAuth,
+  validate({ body: reviewDocumentSchema }),
+  controller.reviewDocument
 );
 
 /**

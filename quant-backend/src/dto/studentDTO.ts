@@ -12,6 +12,10 @@ export function toStudentDTO(student: StudentDoc) {
     level: student.level,
     isPhoneVerified: student.isPhoneVerified,
     isEmailVerified: student.isEmailVerified,
+    isAmbassador: student.isAmbassador,
+    isVerifiedContributor: student.isVerifiedContributor,
+    points: student.points,
+    tokens: student.tokens,
     createdAt: student.createdAt,
   };
 }

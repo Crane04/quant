@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { Types } from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler";
 import { sendSuccess } from "../utils/apiResponse";
 import { DocumentFile } from "../models/DocumentFile";
@@ -8,6 +9,8 @@ import { StudentCourse } from "../models/StudentCourse";
 import { ApiError } from "../utils/ApiError";
 import { findOrCreateCourse } from "../services/courseService";
 import { uploadFile, deleteFile } from "../services/storageService";
+import { awardPointsForApprovedDocument } from "../services/pointsService";
+import { evaluateBadgesForStudent } from "../services/badgeService";
 
 function parseTags(tags?: string): string[] {
   if (!tags) return [];
@@ -19,6 +22,7 @@ function parseTags(tags?: string): string[] {
 
 type UploadDocumentBody = {
   title: string;
+  category: "lecture_note" | "exam_summary" | "past_question" | "other";
   courseId?: string;
   courseCode?: string;
   courseTitle?: string;
@@ -57,9 +61,14 @@ async function uploadDocument(
 
   const { url, key } = await uploadFile(file.buffer, file.originalname, file.mimetype);
 
+  // Admin uploads don't need review; student uploads start pending and only earn
+  // points once an admin approves them (see reviewDocument below).
+  const status = uploadedByType === "Admin" ? "approved" : "pending";
+
   const doc = await DocumentFile.create({
     course: course._id,
     title: body.title,
+    category: body.category,
     fileUrl: url,
     fileType: "pdf",
     sizeBytes: file.size,
@@ -67,6 +76,7 @@ async function uploadDocument(
     tags: parseTags(body.tags),
     uploadedByType,
     uploadedBy,
+    status,
   });
 
   return doc.populate("course");
@@ -87,7 +97,10 @@ export const createMyDocument = asyncHandler(async (req: Request, res: Response)
 });
 
 export const listDocuments = asyncHandler(async (req: Request, res: Response) => {
-  const { courseCode, level, department, semester, search } = req.query as Record<string, string>;
+  const { courseCode, level, department, semester, search, status } = req.query as Record<
+    string,
+    string
+  >;
 
   const courseFilter: Record<string, unknown> = {};
   if (courseCode) courseFilter.code = new RegExp(courseCode, "i");
@@ -101,9 +114,50 @@ export const listDocuments = asyncHandler(async (req: Request, res: Response) =>
     filter.course = { $in: courses.map((c) => c._id) };
   }
   if (search) filter.$text = { $search: search };
+  if (status) filter.status = status;
 
   const docs = await DocumentFile.find(filter).populate("course").sort({ createdAt: -1 });
   sendSuccess(res, docs);
+});
+
+// Admin approves/rejects a student upload. Approval credits the uploader's points,
+// bumps their upload streak, and re-evaluates their badges; rejection just records
+// the reason. No-op (400) if the document was already reviewed.
+export const reviewDocument = asyncHandler(async (req: Request, res: Response) => {
+  const { status, rejectionReason } = req.body as {
+    status: "approved" | "rejected";
+    rejectionReason?: string;
+  };
+
+  const doc = await DocumentFile.findById(req.params.id);
+  if (!doc) throw ApiError.notFound("Document not found");
+  if (doc.status !== "pending") throw ApiError.badRequest("This document has already been reviewed");
+  if (doc.uploadedByType !== "Student") {
+    throw ApiError.badRequest("Only student uploads go through review");
+  }
+
+  doc.reviewedBy = new Types.ObjectId(req.admin!.id);
+  doc.reviewedAt = new Date();
+
+  if (status === "rejected") {
+    doc.status = "rejected";
+    doc.rejectionReason = rejectionReason;
+    await doc.save();
+    sendSuccess(res, await doc.populate("course"));
+    return;
+  }
+
+  const student = await Student.findById(doc.uploadedBy);
+  if (!student) throw ApiError.notFound("Uploader not found");
+
+  const { amount } = await awardPointsForApprovedDocument(student, doc);
+  doc.status = "approved";
+  doc.pointsAwarded = amount;
+  await doc.save();
+
+  await evaluateBadgesForStudent(student._id.toString());
+
+  sendSuccess(res, await doc.populate("course"));
 });
 
 export const getDocument = asyncHandler(async (req: Request, res: Response) => {

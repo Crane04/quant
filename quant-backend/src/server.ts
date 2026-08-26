@@ -3,10 +3,14 @@ import { connectDB } from "./config/db";
 import { env } from "./config/env";
 import { logger } from "./utils/logger";
 import { ensureDefaultAdmin } from "./services/adminAuthService";
+import { ensureDefaultBadges } from "./services/badgeService";
+import { ensureDefaultRewards } from "./services/rewardService";
 
 async function main() {
   await connectDB();
   await ensureDefaultAdmin();
+  await ensureDefaultBadges();
+  await ensureDefaultRewards();
 
   const app = createApp();
 

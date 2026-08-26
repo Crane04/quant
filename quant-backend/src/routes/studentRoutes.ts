@@ -2,7 +2,11 @@ import { Router } from "express";
 import { resolveStudentContext } from "../middleware/resolveStudentContext";
 import { requireAdminAuth } from "../middleware/requireAdminAuth";
 import { validate } from "../middleware/validate";
-import { listStudentsQuerySchema, updateMeSchema } from "../validators/studentValidators";
+import {
+  listStudentsQuerySchema,
+  updateMeSchema,
+  adminUpdateStudentSchema,
+} from "../validators/studentValidators";
 import * as studentController from "../controllers/studentController";
 
 const router = Router();
@@ -131,6 +135,7 @@ router.get("/:id", requireAdminAuth, studentController.getStudentById);
  *               department: { type: string }
  *               level: { type: string }
  *               isAmbassador: { type: boolean, description: "Grants web portal login + document upload rights" }
+ *               isVerifiedContributor: { type: boolean, description: "Quality-review flag; unlocks the Verified Contributor badge" }
  *     responses:
  *       200:
  *         description: Updated student
@@ -147,7 +152,7 @@ router.get("/:id", requireAdminAuth, studentController.getStudentById);
 router.patch(
   "/:id",
   requireAdminAuth,
-  validate({ body: updateMeSchema }),
+  validate({ body: adminUpdateStudentSchema }),
   studentController.updateStudentById
 );
 

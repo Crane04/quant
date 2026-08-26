@@ -37,6 +37,20 @@ const studentSchema = new Schema(
     // (and, by extension, upload documents there) — set by an admin.
     isAmbassador: { type: Boolean, default: false },
 
+    // Gamification. `points` is the spendable/leaderboard balance (drops on reward
+    // redemption); `lifetimePointsEarned` only ever goes up, so points-based badge
+    // thresholds (e.g. Scholar Elite) survive later spending.
+    points: { type: Number, default: 0 },
+    lifetimePointsEarned: { type: Number, default: 0 },
+    tokens: { type: Number, default: 0 },
+
+    // Consecutive-day approved-upload streak, for streak badges.
+    uploadStreakDays: { type: Number, default: 0 },
+    lastApprovedUploadDate: { type: Date },
+
+    // Set by an admin (quality review), independent of the automatic upload/streak badges.
+    isVerifiedContributor: { type: Boolean, default: false },
+
     lastSeenAt: { type: Date },
   },
   { timestamps: true }
