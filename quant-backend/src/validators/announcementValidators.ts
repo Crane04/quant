@@ -18,3 +18,10 @@ export const createAnnouncementSchema = z.discriminatedUnion("type", [
 export const myAnnouncementsQuerySchema = z.object({
   type: z.enum(["lecture_alert", "announcement"]).optional(),
 });
+
+export const listAnnouncementsQuerySchema = z.object({
+  type: z.enum(["lecture_alert", "announcement"]).optional(),
+  university: z.string().optional(),
+  department: z.string().optional(),
+  level: z.string().optional(),
+});

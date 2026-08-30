@@ -19,7 +19,12 @@ const router = Router();
  * /documents/mine:
  *   get:
  *     tags: [Documents]
- *     summary: List documents across the student's enrolled courses
+ *     summary: List documents across the student's enrolled courses (or, for ambassadors, their own uploads)
+ *     description: >
+ *       For a regular student this returns materials from their enrolled courses for the
+ *       given session/semester. For an ambassador it instead returns everything they've
+ *       personally uploaded (any status), regardless of enrollment — session/semester are
+ *       still required by this endpoint but ignored in that case.
  *     security: [{ studentSession: [] }, { botServiceKey: [] }]
  *     parameters:
  *       - { name: session, in: query, required: true, schema: { type: string } }
@@ -126,6 +131,7 @@ router.get("/course/:courseId", controller.getCourseDocuments);
  *       - { name: semester, in: query, schema: { type: string, enum: [first, second] } }
  *       - { name: search, in: query, schema: { type: string } }
  *       - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected] }, description: "e.g. status=pending for the review queue" }
+ *       - { name: uploadedBy, in: query, schema: { type: string }, description: "Filter to one uploader's documents (a Student or Admin id)" }
  *     responses:
  *       200:
  *         description: Documents

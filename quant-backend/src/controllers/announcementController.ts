@@ -73,3 +73,29 @@ export const markSent = asyncHandler(async (req: Request, res: Response) => {
   if (!announcement) throw ApiError.notFound("Announcement not found");
   sendSuccess(res, announcement);
 });
+
+// Admin oversight — every announcement/lecture alert any ambassador has posted, across
+// every class, not just the caller's own (mirrors documentController.listDocuments).
+export const listAllAnnouncements = asyncHandler(async (req: Request, res: Response) => {
+  const { type, university, department, level } = req.query as Record<string, string>;
+
+  const filter: Record<string, unknown> = {};
+  if (type) filter.type = type;
+  if (university) filter.university = university;
+  if (department) filter.department = department;
+  if (level) filter.level = level;
+
+  const announcements = await Announcement.find(filter)
+    .populate("course")
+    .populate("createdBy", "fullName email phone matricNumber")
+    .sort({ createdAt: -1 })
+    .limit(200);
+  sendSuccess(res, announcements);
+});
+
+// Admin moderation — remove an inappropriate/incorrect announcement.
+export const deleteAnnouncement = asyncHandler(async (req: Request, res: Response) => {
+  const announcement = await Announcement.findByIdAndDelete(req.params.id);
+  if (!announcement) throw ApiError.notFound("Announcement not found");
+  sendSuccess(res, undefined, "Announcement deleted");
+});

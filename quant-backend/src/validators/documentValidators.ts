@@ -52,4 +52,5 @@ export const listDocumentsQuerySchema = z.object({
   semester: z.enum(["first", "second"]).optional(),
   search: z.string().optional(),
   status: z.enum(["pending", "approved", "rejected"]).optional(),
+  uploadedBy: z.string().optional(),
 });

@@ -2,11 +2,13 @@ import { Router } from "express";
 import { resolveStudentContext } from "../middleware/resolveStudentContext";
 import { requireAmbassador } from "../middleware/requireAmbassador";
 import { requireBotApiKey } from "../middleware/requireBotApiKey";
+import { requireAdminAuth } from "../middleware/requireAdminAuth";
 import { validate } from "../middleware/validate";
 import * as controller from "../controllers/announcementController";
 import {
   createAnnouncementSchema,
   myAnnouncementsQuerySchema,
+  listAnnouncementsQuerySchema,
 } from "../validators/announcementValidators";
 
 const router = Router();
@@ -135,5 +137,52 @@ router.get("/unsent", requireBotApiKey, controller.getUnsent);
  *       404: { $ref: '#/components/responses/NotFound' }
  */
 router.post("/:id/mark-sent", requireBotApiKey, controller.markSent);
+
+/**
+ * @openapi
+ * /announcements:
+ *   get:
+ *     tags: [Announcements]
+ *     summary: All announcements/lecture alerts across every class (admin)
+ *     security: [{ adminSession: [] }]
+ *     parameters:
+ *       - { name: type, in: query, schema: { type: string, enum: [lecture_alert, announcement] } }
+ *       - { name: university, in: query, schema: { type: string } }
+ *       - { name: department, in: query, schema: { type: string } }
+ *       - { name: level, in: query, schema: { type: string } }
+ *     responses:
+ *       200:
+ *         description: Announcements
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessMessage'
+ *                 - type: object
+ *                   properties: { data: { type: array, items: { $ref: '#/components/schemas/Announcement' } } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+router.get(
+  "/",
+  requireAdminAuth,
+  validate({ query: listAnnouncementsQuerySchema }),
+  controller.listAllAnnouncements
+);
+
+/**
+ * @openapi
+ * /announcements/{id}:
+ *   delete:
+ *     tags: [Announcements]
+ *     summary: Moderate/remove an announcement (admin)
+ *     security: [{ adminSession: [] }]
+ *     parameters:
+ *       - { name: id, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       200: { description: Announcement deleted, content: { application/json: { schema: { $ref: '#/components/schemas/SuccessMessage' } } } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.delete("/:id", requireAdminAuth, controller.deleteAnnouncement);
 
 export default router;

@@ -9,6 +9,9 @@ import UploadPage from "./pages/UploadPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import AdminsPage from "./pages/AdminsPage";
 import StudentsPage from "./pages/StudentsPage";
+import LeaderboardPage from "./pages/LeaderboardPage";
+import RewardsPage from "./pages/RewardsPage";
+import AnnouncementsPage from "./pages/AnnouncementsPage";
 
 const qc = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000 } },
@@ -26,6 +29,9 @@ function ProtectedApp() {
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/students" element={<StudentsPage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/rewards" element={<RewardsPage />} />
+        <Route path="/announcements" element={<AnnouncementsPage />} />
         {admin?.role === "super_admin" && <Route path="/admins" element={<AdminsPage />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

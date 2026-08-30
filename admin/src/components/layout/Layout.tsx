@@ -1,5 +1,15 @@
 import { NavLink } from "react-router-dom";
-import { FileText, GraduationCap, LayoutDashboard, LogOut, Upload, Users } from "lucide-react";
+import {
+  Bell,
+  FileText,
+  Gift,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  Trophy,
+  Upload,
+  Users,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 const navItems = [
@@ -7,6 +17,9 @@ const navItems = [
   { to: "/upload", icon: Upload, label: "Upload PDF" },
   { to: "/documents", icon: FileText, label: "Documents" },
   { to: "/students", icon: GraduationCap, label: "Students" },
+  { to: "/leaderboard", icon: Trophy, label: "Leaderboard" },
+  { to: "/rewards", icon: Gift, label: "Rewards" },
+  { to: "/announcements", icon: Bell, label: "Announcements" },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

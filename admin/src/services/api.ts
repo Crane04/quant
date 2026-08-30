@@ -3,11 +3,16 @@ import {
   AdminRole,
   AdminsResponse,
   AdminUser,
+  Announcement,
+  BadgeEntry,
   CoursesResponse,
   CourseRef,
   DocumentsResponse,
   LoginResponse,
   PDFDoc,
+  PointsBalance,
+  PointsTransactionEntry,
+  RewardRedemption,
   Student,
   StudentsResponse,
   StudentUpdatePayload,
@@ -60,9 +65,19 @@ export const fetchDocuments = async (filters?: {
   department?: string;
   semester?: string;
   search?: string;
+  status?: string;
+  uploadedBy?: string;
 }): Promise<DocumentsResponse> => {
   const { data } = await api.get("/documents", { params: filters });
   return data;
+};
+
+export const reviewDocument = async (
+  id: string,
+  review: { status: "approved" | "rejected"; rejectionReason?: string }
+): Promise<PDFDoc> => {
+  const { data } = await api.patch(`/documents/${id}/review`, review);
+  return data.data;
 };
 
 export const fetchCourses = async (filters?: {
@@ -143,6 +158,43 @@ export const updateAdmin = async (
 
 export const deleteAdmin = async (id: string): Promise<void> => {
   await api.delete(`/admins/${id}`);
+};
+
+export const fetchStudentPoints = async (studentId: string): Promise<PointsBalance> => {
+  const { data } = await api.get(`/points/${studentId}`);
+  return data.data;
+};
+
+export const fetchStudentPointsHistory = async (
+  studentId: string,
+  limit = 20
+): Promise<PointsTransactionEntry[]> => {
+  const { data } = await api.get(`/points/${studentId}/history`, { params: { limit } });
+  return data.data;
+};
+
+export const fetchStudentBadges = async (studentId: string): Promise<BadgeEntry[]> => {
+  const { data } = await api.get(`/badges/${studentId}`);
+  return data.data;
+};
+
+export const fetchAllRedemptions = async (): Promise<RewardRedemption[]> => {
+  const { data } = await api.get("/rewards/redemptions");
+  return data.data;
+};
+
+export const fetchAnnouncements = async (filters?: {
+  type?: string;
+  university?: string;
+  department?: string;
+  level?: string;
+}): Promise<Announcement[]> => {
+  const { data } = await api.get("/announcements", { params: filters });
+  return data.data;
+};
+
+export const deleteAnnouncement = async (id: string): Promise<void> => {
+  await api.delete(`/announcements/${id}`);
 };
 
 export type { CourseRef };

@@ -4,17 +4,14 @@ import { sendSuccess } from "../utils/apiResponse";
 import { Badge } from "../models/Badge";
 import { StudentBadge } from "../models/StudentBadge";
 
-// Full catalog with per-student earned/earnedAt merged in — powers the
-// Account > Badges & Achievements page (All / Earned / Locked tabs are a
-// client-side filter over this one list).
-export const getMyBadges = asyncHandler(async (req: Request, res: Response) => {
+async function getBadgesForStudent(studentId: string) {
   const [badges, earned] = await Promise.all([
     Badge.find().sort({ category: 1, points: 1 }),
-    StudentBadge.find({ student: req.studentId }),
+    StudentBadge.find({ student: studentId }),
   ]);
   const earnedByBadge = new Map(earned.map((e) => [e.badge.toString(), e.earnedAt]));
 
-  const data = badges.map((b) => ({
+  return badges.map((b) => ({
     id: b._id.toString(),
     key: b.key,
     name: b.name,
@@ -25,6 +22,16 @@ export const getMyBadges = asyncHandler(async (req: Request, res: Response) => {
     earned: earnedByBadge.has(b._id.toString()),
     earnedAt: earnedByBadge.get(b._id.toString()) ?? null,
   }));
+}
 
-  sendSuccess(res, data);
+// Full catalog with per-student earned/earnedAt merged in — powers the
+// Account > Badges & Achievements page (All / Earned / Locked tabs are a
+// client-side filter over this one list).
+export const getMyBadges = asyncHandler(async (req: Request, res: Response) => {
+  sendSuccess(res, await getBadgesForStudent(req.studentId!));
+});
+
+// Admin oversight — same shape as the self-service endpoint, for any student.
+export const getStudentBadges = asyncHandler(async (req: Request, res: Response) => {
+  sendSuccess(res, await getBadgesForStudent(req.params.studentId));
 });

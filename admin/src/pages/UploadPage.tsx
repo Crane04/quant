@@ -4,11 +4,18 @@ import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Upload, FileText, X, CheckCircle2, Loader2, Search, PlusCircle } from "lucide-react";
 import { fetchCourses, uploadDocument } from "../services/api";
-import { CourseRef, UploadPayload } from "../types";
+import { CourseRef, DocumentCategory, UploadPayload } from "../types";
 
 const LEVELS = ["100", "200", "300", "400", "500"];
 
-const initialDocForm = { title: "", tags: "" };
+const CATEGORIES: { value: DocumentCategory; label: string }[] = [
+  { value: "lecture_note", label: "Lecture Note" },
+  { value: "exam_summary", label: "Exam Summary" },
+  { value: "past_question", label: "Past Question" },
+  { value: "other", label: "Other" },
+];
+
+const initialDocForm = { title: "", tags: "", category: "lecture_note" as DocumentCategory };
 
 const initialNewCourseForm = {
   courseCode: "",
@@ -73,7 +80,12 @@ export default function UploadPage() {
 
     if (mode === "existing") {
       if (!selectedCourse) return toast.error("Select a course, or switch to \"New course\"");
-      payload = { title: docForm.title, tags: docForm.tags, courseId: selectedCourse._id };
+      payload = {
+        title: docForm.title,
+        category: docForm.category,
+        tags: docForm.tags,
+        courseId: selectedCourse._id,
+      };
     } else {
       const required = [
         "courseCode",
@@ -90,6 +102,7 @@ export default function UploadPage() {
       }
       payload = {
         title: docForm.title,
+        category: docForm.category,
         tags: docForm.tags,
         courseCode: newCourseForm.courseCode,
         courseTitle: newCourseForm.courseTitle,
@@ -186,6 +199,23 @@ export default function UploadPage() {
               placeholder="e.g. Fluid Mechanics Week 3 Lecture Notes"
               className="input"
             />
+          </div>
+
+          <div>
+            <label className="label">Category *</label>
+            <select
+              value={docForm.category}
+              onChange={(e) =>
+                setDocForm((f) => ({ ...f, category: e.target.value as DocumentCategory }))
+              }
+              className="select"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

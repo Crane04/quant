@@ -2,18 +2,32 @@ import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
+  BadgeCheck,
   CheckCircle2,
+  Coins,
   GraduationCap,
   Loader2,
+  Lock,
   Pencil,
   Save,
   Search,
+  ShieldCheck,
+  Sparkles,
+  Star,
   Trash2,
+  Trophy,
   UserRound,
-  XCircle,
   X,
+  XCircle,
 } from "lucide-react";
-import { deleteStudent, fetchStudents, updateStudent } from "../services/api";
+import {
+  deleteStudent,
+  fetchStudentBadges,
+  fetchStudentPoints,
+  fetchStudentPointsHistory,
+  fetchStudents,
+  updateStudent,
+} from "../services/api";
 import { Student, StudentUpdatePayload } from "../types";
 
 const LEVELS = ["", "100", "200", "300", "400", "500"];
@@ -43,6 +57,135 @@ const buildUpdatePayload = (form: ReturnType<typeof getInitialForm>): StudentUpd
   level: form.level,
 });
 
+function StudentDetailModal({ student, onClose }: { student: Student; onClose: () => void }) {
+  const { data: points, isLoading: loadingPoints } = useQuery({
+    queryKey: ["points", student.id],
+    queryFn: () => fetchStudentPoints(student.id),
+  });
+
+  const { data: history, isLoading: loadingHistory } = useQuery({
+    queryKey: ["points-history", student.id],
+    queryFn: () => fetchStudentPointsHistory(student.id, 20),
+  });
+
+  const { data: badges, isLoading: loadingBadges } = useQuery({
+    queryKey: ["badges", student.id],
+    queryFn: () => fetchStudentBadges(student.id),
+  });
+
+  const earnedBadges = (badges || []).filter((b) => b.earned);
+  const lockedBadges = (badges || []).filter((b) => !b.earned);
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="card w-full max-w-2xl max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 sticky top-0 bg-zinc-900">
+          <div>
+            <h2 className="text-base font-semibold text-zinc-100">{student.fullName}</h2>
+            <p className="text-xs text-zinc-500">{student.email}</p>
+          </div>
+          <button onClick={onClose} className="btn-ghost p-2">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Points summary */}
+          <div>
+            <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Points & Tokens</h3>
+            {loadingPoints ? (
+              <Loader2 size={18} className="animate-spin text-zinc-600" />
+            ) : points ? (
+              <div className="grid grid-cols-4 gap-3">
+                <div className="rounded-lg border border-zinc-800 p-3">
+                  <p className="text-lg font-semibold text-zinc-100">{points.points}</p>
+                  <p className="text-xs text-zinc-500">Points</p>
+                </div>
+                <div className="rounded-lg border border-zinc-800 p-3">
+                  <p className="text-lg font-semibold text-zinc-100">{points.tokens}</p>
+                  <p className="text-xs text-zinc-500">Tokens</p>
+                </div>
+                <div className="rounded-lg border border-zinc-800 p-3">
+                  <p className="text-lg font-semibold text-zinc-100">{points.lifetimePointsEarned}</p>
+                  <p className="text-xs text-zinc-500">Lifetime</p>
+                </div>
+                <div className="rounded-lg border border-zinc-800 p-3">
+                  <p className="text-lg font-semibold text-zinc-100">{points.uploadStreakDays}</p>
+                  <p className="text-xs text-zinc-500">Streak (days)</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-500">No data</p>
+            )}
+          </div>
+
+          {/* Points history */}
+          <div>
+            <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Recent Activity</h3>
+            {loadingHistory ? (
+              <Loader2 size={18} className="animate-spin text-zinc-600" />
+            ) : !history || history.length === 0 ? (
+              <p className="text-sm text-zinc-500">No points activity yet</p>
+            ) : (
+              <div className="space-y-2">
+                {history.map((entry) => (
+                  <div
+                    key={entry._id}
+                    className="flex items-center justify-between text-sm border-b border-zinc-800/50 pb-2 last:border-0"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-zinc-200 truncate">{entry.description}</p>
+                      <p className="text-xs text-zinc-600">{formatDate(entry.createdAt)}</p>
+                    </div>
+                    <span className={entry.amount >= 0 ? "text-green-400" : "text-red-400"}>
+                      {entry.amount >= 0 ? "+" : ""}
+                      {entry.amount}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Badges */}
+          <div>
+            <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">
+              Badges {badges ? `(${earnedBadges.length}/${badges.length})` : ""}
+            </h3>
+            {loadingBadges ? (
+              <Loader2 size={18} className="animate-spin text-zinc-600" />
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {[...earnedBadges, ...lockedBadges].map((badge) => (
+                  <div
+                    key={badge.id}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
+                      badge.earned ? "border-brand-500/30 bg-brand-500/5" : "border-zinc-800 opacity-50"
+                    }`}
+                  >
+                    {badge.earned ? (
+                      <Trophy size={14} className="text-brand-400 flex-shrink-0" />
+                    ) : (
+                      <Lock size={14} className="text-zinc-600 flex-shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-zinc-200 truncate">{badge.name}</p>
+                      <p className="text-xs text-zinc-600 capitalize">{badge.tier}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StudentsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -51,6 +194,7 @@ export default function StudentsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ReturnType<typeof getInitialForm> | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [detailStudent, setDetailStudent] = useState<Student | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["students", search, levelFilter, departmentFilter],
@@ -69,6 +213,15 @@ export default function StudentsPage() {
       toast.success("Student updated");
       setEditingId(null);
       setForm(null);
+      qc.invalidateQueries({ queryKey: ["students"] });
+    },
+    onError: () => toast.error("Could not update student"),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: StudentUpdatePayload }) =>
+      updateStudent(id, updates),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["students"] });
     },
     onError: () => toast.error("Could not update student"),
@@ -107,6 +260,17 @@ export default function StudentsPage() {
     }
 
     updateMutation.mutate({ id: student.id, updates: buildUpdatePayload(form) });
+  };
+
+  const toggleAmbassador = (student: Student) => {
+    toggleMutation.mutate({ id: student.id, updates: { isAmbassador: !student.isAmbassador } });
+  };
+
+  const toggleVerifiedContributor = (student: Student) => {
+    toggleMutation.mutate({
+      id: student.id,
+      updates: { isVerifiedContributor: !student.isVerifiedContributor },
+    });
   };
 
   return (
@@ -166,6 +330,8 @@ export default function StudentsPage() {
                 <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Student</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Academic Profile</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Verification</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Roles</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Points</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Registered</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -177,7 +343,7 @@ export default function StudentsPage() {
                 if (isEditing && form) {
                   return (
                     <tr key={student.id} className="bg-zinc-800/20">
-                      <td colSpan={5} className="px-4 py-4">
+                      <td colSpan={7} className="px-4 py-4">
                         <form onSubmit={(event) => saveStudent(event, student)} className="grid grid-cols-6 gap-3 items-end">
                           <div className="col-span-2">
                             <label className="label">Name</label>
@@ -246,15 +412,22 @@ export default function StudentsPage() {
                 return (
                   <tr key={student.id} className="hover:bg-zinc-800/30 transition-colors">
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setDetailStudent(student)}
+                        className="flex items-center gap-3 text-left"
+                        title="View points & badges"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center flex-shrink-0">
                           <UserRound size={15} className="text-brand-400" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-zinc-100 truncate max-w-[180px]">{student.fullName}</p>
+                          <p className="text-sm font-medium text-zinc-100 truncate max-w-[180px] hover:underline">
+                            {student.fullName}
+                          </p>
                           <p className="text-xs text-zinc-500 font-mono">{student.phone}</p>
                         </div>
-                      </div>
+                      </button>
                     </td>
 
                     <td className="px-4 py-3">
@@ -280,12 +453,63 @@ export default function StudentsPage() {
                       </div>
                     </td>
 
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleAmbassador(student)}
+                          disabled={toggleMutation.isPending}
+                          className={`flex items-center gap-1 text-xs rounded-lg px-2 py-1 w-fit transition ${
+                            student.isAmbassador
+                              ? "bg-brand-500/15 text-brand-400"
+                              : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"
+                          }`}
+                          title="Toggle ambassador status (web portal + uploads)"
+                        >
+                          <ShieldCheck size={12} /> Ambassador
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleVerifiedContributor(student)}
+                          disabled={toggleMutation.isPending}
+                          className={`flex items-center gap-1 text-xs rounded-lg px-2 py-1 w-fit transition ${
+                            student.isVerifiedContributor
+                              ? "bg-purple-500/15 text-purple-400"
+                              : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"
+                          }`}
+                          title="Toggle verified contributor badge"
+                        >
+                          <BadgeCheck size={12} /> Verified
+                        </button>
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-sm text-zinc-300">
+                        <Star size={13} className="text-amber-400" />
+                        {student.points}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
+                        <Coins size={11} />
+                        {student.tokens} tokens
+                      </div>
+                    </td>
+
                     <td className="px-4 py-3 text-sm text-zinc-400">
                       {formatDate(student.createdAt)}
                     </td>
 
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setDetailStudent(student)}
+                          className="btn-ghost p-2"
+                          title="View points & badges"
+                        >
+                          <Sparkles size={15} />
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => startEditing(student)}
@@ -331,6 +555,10 @@ export default function StudentsPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {detailStudent && (
+        <StudentDetailModal student={detailStudent} onClose={() => setDetailStudent(null)} />
       )}
     </div>
   );

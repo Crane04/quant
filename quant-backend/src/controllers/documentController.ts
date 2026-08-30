@@ -97,7 +97,7 @@ export const createMyDocument = asyncHandler(async (req: Request, res: Response)
 });
 
 export const listDocuments = asyncHandler(async (req: Request, res: Response) => {
-  const { courseCode, level, department, semester, search, status } = req.query as Record<
+  const { courseCode, level, department, semester, search, status, uploadedBy } = req.query as Record<
     string,
     string
   >;
@@ -115,8 +115,12 @@ export const listDocuments = asyncHandler(async (req: Request, res: Response) =>
   }
   if (search) filter.$text = { $search: search };
   if (status) filter.status = status;
+  if (uploadedBy) filter.uploadedBy = uploadedBy;
 
-  const docs = await DocumentFile.find(filter).populate("course").sort({ createdAt: -1 });
+  const docs = await DocumentFile.find(filter)
+    .populate("course")
+    .populate("uploadedBy", "fullName email phone matricNumber")
+    .sort({ createdAt: -1 });
   sendSuccess(res, docs);
 });
 
@@ -143,7 +147,9 @@ export const reviewDocument = asyncHandler(async (req: Request, res: Response) =
     doc.status = "rejected";
     doc.rejectionReason = rejectionReason;
     await doc.save();
-    sendSuccess(res, await doc.populate("course"));
+    await doc.populate("course");
+    await doc.populate("uploadedBy", "fullName email phone matricNumber");
+    sendSuccess(res, doc);
     return;
   }
 
@@ -157,11 +163,15 @@ export const reviewDocument = asyncHandler(async (req: Request, res: Response) =
 
   await evaluateBadgesForStudent(student._id.toString());
 
-  sendSuccess(res, await doc.populate("course"));
+  await doc.populate("course");
+  await doc.populate("uploadedBy", "fullName email phone matricNumber");
+  sendSuccess(res, doc);
 });
 
 export const getDocument = asyncHandler(async (req: Request, res: Response) => {
-  const doc = await DocumentFile.findById(req.params.id).populate("course");
+  const doc = await DocumentFile.findById(req.params.id)
+    .populate("course")
+    .populate("uploadedBy", "fullName email phone matricNumber");
   if (!doc) throw ApiError.notFound("Document not found");
   sendSuccess(res, doc);
 });
@@ -193,12 +203,22 @@ export const getCourseDocuments = asyncHandler(async (req: Request, res: Respons
 export const getMyDocuments = asyncHandler(async (req: Request, res: Response) => {
   const { session, semester } = req.query as { session: string; semester: string };
 
-  const enrollments = await StudentCourse.find({ student: req.studentId, session, semester }).select(
-    "course"
-  );
-  const courseIds = enrollments.map((e) => e.course);
+  const student = await Student.findById(req.studentId);
+  if (!student) throw ApiError.notFound("Student not found");
 
-  const docs = await DocumentFile.find({ course: { $in: courseIds } })
+  // Ambassadors are checking on their own uploads, not browsing course materials —
+  // no reason to gate that behind an enrollment record for the course.
+  let filter: Record<string, unknown>;
+  if (student.isAmbassador) {
+    filter = { uploadedByType: "Student", uploadedBy: req.studentId };
+  } else {
+    const enrollments = await StudentCourse.find({ student: req.studentId, session, semester }).select(
+      "course"
+    );
+    filter = { course: { $in: enrollments.map((e) => e.course) } };
+  }
+
+  const docs = await DocumentFile.find(filter)
     .populate("course")
     .sort({ createdAt: -1 })
     .limit(100);
