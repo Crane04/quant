@@ -70,3 +70,38 @@ export async function sendWhatsAppText(to: string, body: string): Promise<void> 
     throw new Error(`Failed to send WhatsApp message: ${res.status}`);
   }
 }
+
+/**
+ * Sends a file as a native WhatsApp document attachment (not a link) via the
+ * Meta Cloud API's `link`-based document message — Meta fetches the file itself
+ * from the given public URL, so this works directly off our R2 fileUrl with no
+ * separate upload-to-Meta step.
+ */
+export async function sendWhatsAppDocument(to: string, fileUrl: string, filename: string, caption?: string): Promise<void> {
+  if (!env.META_WA_PHONE_NUMBER_ID || !env.META_WA_ACCESS_TOKEN) {
+    logger.warn("META_WA credentials not configured — skipping WhatsApp document send", { to });
+    return;
+  }
+
+  const url = `${GRAPH_BASE_URL}/${env.META_WA_PHONE_NUMBER_ID}/messages`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.META_WA_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: to.replace("+", ""),
+      type: "document",
+      document: { link: fileUrl, filename, ...(caption && { caption }) },
+    }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    logger.error("WhatsApp document send failed", { status: res.status, body: errBody });
+    throw new Error(`Failed to send WhatsApp document: ${res.status}`);
+  }
+}

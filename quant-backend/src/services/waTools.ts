@@ -7,7 +7,6 @@ import { TimetableSlot } from "../models/TimetableSlot";
 import { Assignment } from "../models/Assignment";
 import { StudentAssignmentStatus } from "../models/StudentAssignmentStatus";
 import { GradeRecord, GRADE_POINTS } from "../models/GradeRecord";
-import { env } from "../config/env";
 
 /** JSON-schema tool definitions in Groq/OpenAI's function-calling format. */
 export const TOOL_DEFINITIONS = [
@@ -19,7 +18,7 @@ export const TOOL_DEFINITIONS = [
         "Search for course material (lecture notes, past questions, exam summaries) by course " +
         "code and/or a topic keyword. Returns a list of matches with an id for each — call " +
         "get_document_link with that id once the user says which one they want (or auto-pick if " +
-        "there's exactly one obvious match).",
+        "there's exactly one obvious match) to actually send it to them.",
       parameters: {
         type: "object",
         properties: {
@@ -33,7 +32,10 @@ export const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "get_document_link",
-      description: "Get the download/view link for one specific document by its id.",
+      description:
+        "Sends one specific document to the student as a WhatsApp file attachment, by its id. " +
+        "The file is delivered automatically as a separate message — do not include a link in " +
+        "your reply, just briefly confirm you're sending it.",
       parameters: {
         type: "object",
         properties: { documentId: { type: "string" } },
@@ -162,15 +164,23 @@ export async function searchCourseMaterials(args: { courseCode?: string; topic?:
   };
 }
 
+function sanitizeFilename(title: string, fileType: string): string {
+  const base = title.trim().replace(/[^a-zA-Z0-9 _-]/g, "").replace(/\s+/g, "_") || "document";
+  return `${base}.${fileType}`;
+}
+
 export async function getDocumentLink(args: { documentId: string }) {
   const doc = await DocumentFile.findById(args.documentId).populate("course");
   if (!doc || doc.status !== "approved") return { found: false, message: "Document not found." };
+
+  await DocumentFile.updateOne({ _id: doc._id }, { $inc: { downloadCount: 1 } });
 
   return {
     found: true,
     title: doc.title,
     courseCode: (doc.course as unknown as { code: string }).code,
-    url: `${env.APP_BASE_URL}/view/${doc._id}`,
+    fileUrl: doc.fileUrl,
+    filename: sanitizeFilename(doc.title, doc.fileType),
   };
 }
 

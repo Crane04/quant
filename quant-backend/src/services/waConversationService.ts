@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { Student, StudentDoc } from "../models/Student";
 import * as authService from "./authService";
 import { verifyOtp, issueOtp } from "./otpService";
-import { sendWhatsAppText } from "./waService";
+import { sendWhatsAppText, sendWhatsAppDocument } from "./waService";
 import { getWaSession, setWaSession, clearWaSession, appendWaHistory, WaState } from "./waSession";
 import { completeChat, ChatMessage } from "./groqAgentService";
 import { TOOL_DEFINITIONS, executeTool } from "./waTools";
@@ -36,7 +36,15 @@ something up.
 
 When search_course_materials returns multiple documents, list them briefly (title + category)
 and ask which one they want before calling get_document_link — unless there's exactly one
-obvious match, in which case just get its link directly.
+obvious match, in which case just send it directly. get_document_link delivers the actual PDF
+as a WhatsApp file attachment automatically — never write out a link or URL yourself, just
+briefly confirm you're sending it (e.g. "Here's the MEE 305 note!").
+
+When search_course_materials finds nothing, assume the course code they gave you is correct —
+the library just doesn't have that material *yet*. Don't tell them to double-check the code or
+imply they made a mistake. Be warm and encouraging instead, e.g. "We don't have MEE 305 notes
+up yet, but I'll keep an eye out!" — and offer to search a different course or topic if they'd
+like.
 
 For enroll_in_courses and record_grade, ask for any missing required detail (session, semester,
 etc.) in a normal sentence before calling the tool — don't guess values the student didn't give you.
@@ -110,9 +118,9 @@ async function runAgent(from: string, student: StudentDoc, input: string): Promi
   ];
 
   let finalReply: string | null = null;
-  // Never trust the model to transcribe a URL correctly when paraphrasing a tool
-  // result — collect real links out-of-band and append them verbatim instead.
-  const verifiedLinks: { title: string; url: string }[] = [];
+  // Documents are sent as real attachments the moment the tool resolves them — never
+  // routed through the model's own text, so it can't mistype a link or an id.
+  const sentFileUrls = new Set<string>();
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const message = await completeChat(turn, TOOL_DEFINITIONS);
@@ -134,9 +142,15 @@ async function runAgent(from: string, student: StudentDoc, input: string): Promi
         }));
 
         if (call.function.name === "get_document_link") {
-          const r = result as { found?: boolean; url?: string; title?: string };
-          if (r.found && r.url && !verifiedLinks.some((l) => l.url === r.url)) {
-            verifiedLinks.push({ title: r.title ?? "Document", url: r.url });
+          const r = result as { found?: boolean; fileUrl?: string; filename?: string };
+          if (r.found && r.fileUrl && !sentFileUrls.has(r.fileUrl)) {
+            sentFileUrls.add(r.fileUrl);
+            await sendWhatsAppDocument(from, r.fileUrl, r.filename ?? "document.pdf").catch((err) => {
+              logger.error("Failed to send WhatsApp document", {
+                to: from,
+                error: err instanceof Error ? err.message : "unknown",
+              });
+            });
           }
         }
 
@@ -158,11 +172,11 @@ async function runAgent(from: string, student: StudentDoc, input: string): Promi
     finalReply = "Sorry, I'm having trouble right now — please try again in a moment.";
   }
 
-  if (verifiedLinks.length > 0) {
-    // Strip whatever URL(s) the model wrote — it may have mistyped one — and
-    // append the verified links itself, so what's sent always matches the DB exactly.
+  // Defense in depth: strip any URL the model wrote anyway, despite the system
+  // prompt telling it not to — the file already went out as a real attachment.
+  if (sentFileUrls.size > 0) {
     finalReply = finalReply.replace(/https?:\/\/\S+/g, "").replace(/[ \t]+\n/g, "\n").trim();
-    finalReply += "\n\n" + verifiedLinks.map((l) => `${l.title}: ${l.url}`).join("\n");
+    if (!finalReply) finalReply = "Here you go!";
   }
 
   await reply(from, finalReply);
