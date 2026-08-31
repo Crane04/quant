@@ -164,3 +164,46 @@ export async function sendWhatsAppFlow(
     throw new Error(`Failed to send WhatsApp flow: ${res.status}`);
   }
 }
+
+/**
+ * Sends a link as an interactive CTA-URL button, which WhatsApp opens in its own
+ * in-app browser — unlike a plain URL in a text message, which always kicks out
+ * to the device's external browser.
+ */
+export async function sendWhatsAppCtaUrl(
+  to: string,
+  options: { bodyText: string; buttonText: string; url: string }
+): Promise<void> {
+  if (!env.META_WA_PHONE_NUMBER_ID || !env.META_WA_ACCESS_TOKEN) {
+    throw new Error("META_WA credentials not configured");
+  }
+
+  const endpoint = `${GRAPH_BASE_URL}/${env.META_WA_PHONE_NUMBER_ID}/messages`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.META_WA_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: to.replace("+", ""),
+      type: "interactive",
+      interactive: {
+        type: "cta_url",
+        body: { text: options.bodyText },
+        action: {
+          name: "cta_url",
+          parameters: { display_text: options.buttonText, url: options.url },
+        },
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    logger.error("WhatsApp CTA URL send failed", { status: res.status, body: errBody });
+    throw new Error(`Failed to send WhatsApp CTA URL: ${res.status}`);
+  }
+}

@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { Student, StudentDoc } from "../models/Student";
 import * as authService from "./authService";
 import { verifyOtp, issueOtp } from "./otpService";
-import { sendWhatsAppText, sendWhatsAppDocument, sendWhatsAppFlow } from "./waService";
+import { sendWhatsAppText, sendWhatsAppDocument, sendWhatsAppFlow, sendWhatsAppCtaUrl } from "./waService";
 import { getWaSession, setWaSession, clearWaSession, appendWaHistory, WaState } from "./waSession";
 import { completeChat, ChatMessage } from "./groqAgentService";
 import { TOOL_DEFINITIONS, executeTool } from "./waTools";
@@ -326,10 +326,20 @@ async function handleRegistration(
       if (env.REGISTRATION_FALLBACK === "web") {
         const token = createRegistrationToken(from);
         setWaSession(from, "AWAITING_WEB_REGISTRATION");
-        await reply(
-          from,
-          `Let's get you registered — tap the link below:\n\n${env.APP_BASE_URL}/register/${token}\n\n(expires in 30 minutes)`
-        );
+        try {
+          // A CTA-URL button opens in WhatsApp's own in-app browser — a plain
+          // link in a text message would kick out to the external browser instead.
+          await sendWhatsAppCtaUrl(from, {
+            bodyText: "Let's get you registered — tap below to fill in your details. (Link expires in 30 minutes.)",
+            buttonText: "Register",
+            url: `${env.APP_BASE_URL}/register/${token}`,
+          });
+        } catch (ctaErr) {
+          logger.error("Failed to send registration CTA URL", {
+            to: from,
+            error: ctaErr instanceof Error ? ctaErr.message : "unknown",
+          });
+        }
       } else {
         setWaSession(from, "AWAITING_REG_NAME");
         await reply(from, fmt.formatWelcome());
