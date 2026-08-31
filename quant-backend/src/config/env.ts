@@ -20,6 +20,7 @@ const envSchema = z.object({
   META_WA_ACCESS_TOKEN: z.string().optional().default(""),
   META_WA_VERIFY_TOKEN: z.string().optional().default(""),
   META_WA_APP_SECRET: z.string().optional().default(""), // for X-Hub-Signature-256 verification
+  META_WA_FLOW_PRIVATE_KEY_B64: z.string().optional().default(""), // RSA private key, base64-encoded PEM
 
   GROQ_API_KEY: z.string().optional().default(""),
   GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),

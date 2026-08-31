@@ -52,6 +52,10 @@ const studentSchema = new Schema(
     isVerifiedContributor: { type: Boolean, default: false },
 
     lastSeenAt: { type: Date },
+
+    // Captured at signup (WhatsApp Flow "Referral Code" field), no attribution
+    // logic on it yet — kept so real signup data isn't silently discarded.
+    referredByCode: { type: String, trim: true },
   },
   { timestamps: true }
 );

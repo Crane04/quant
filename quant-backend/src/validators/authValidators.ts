@@ -12,6 +12,7 @@ export const registerSchema = z.object({
   university: z.string().min(2).max(150),
   department: z.string().min(2).max(150),
   level: z.string().min(1).max(10),
+  referredByCode: z.string().min(1).max(50).optional(),
 });
 
 export const verifyPhoneSchema = z.object({

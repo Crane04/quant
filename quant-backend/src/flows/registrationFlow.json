@@ -1,0 +1,282 @@
+{
+  "version": "7.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "PERSONAL_INFO": ["ACADEMIC_INFO"],
+    "ACADEMIC_INFO": ["ACCOUNT_INFO"],
+    "ACCOUNT_INFO": ["REFERRAL"],
+    "REFERRAL": []
+  },
+  "screens": [
+    {
+      "id": "PERSONAL_INFO",
+      "title": "Step 1 of 4",
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_personal_info",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Let's get to know you"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Tell us your name and how to reach you"
+              },
+              {
+                "type": "TextInput",
+                "name": "first_name",
+                "label": "First Name",
+                "input-type": "text",
+                "required": true
+              },
+              {
+                "type": "TextInput",
+                "name": "surname",
+                "label": "Surname",
+                "input-type": "text",
+                "required": true
+              },
+              {
+                "type": "TextInput",
+                "name": "email",
+                "label": "Email Address",
+                "input-type": "email",
+                "required": true
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {
+                    "type": "screen",
+                    "name": "ACADEMIC_INFO"
+                  },
+                  "payload": {
+                    "first_name": "${form.first_name}",
+                    "surname": "${form.surname}",
+                    "email": "${form.email}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ACADEMIC_INFO",
+      "title": "Step 2 of 4",
+      "data": {
+        "first_name": { "type": "string", "__example__": "Ade" },
+        "surname": { "type": "string", "__example__": "Balogun" },
+        "email": { "type": "string", "__example__": "ade.balogun@example.com" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_academic_info",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Academic Details"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Select your school, faculty and department"
+              },
+              {
+                "type": "Dropdown",
+                "name": "school",
+                "label": "School",
+                "required": true,
+                "data-source": [
+                  { "id": "lasu", "title": "Lagos State University (LASU)" }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "faculty",
+                "label": "Faculty",
+                "required": true,
+                "data-source": [
+                  { "id": "engineering", "title": "Engineering" }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "department",
+                "label": "Department",
+                "required": true,
+                "data-source": [
+                  { "id": "aeronautics_astronautics", "title": "Aeronautics and Astronautics Engineering" },
+                  { "id": "aerospace_engineering", "title": "Aerospace Engineering" },
+                  { "id": "chemical_engineering", "title": "Chemical Engineering" },
+                  { "id": "electronics_computer_engineering", "title": "Electronics and Computer Engineering" },
+                  { "id": "mechanical_engineering", "title": "Mechanical Engineering" }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {
+                    "type": "screen",
+                    "name": "ACCOUNT_INFO"
+                  },
+                  "payload": {
+                    "first_name": "${data.first_name}",
+                    "surname": "${data.surname}",
+                    "email": "${data.email}",
+                    "school": "${form.school}",
+                    "faculty": "${form.faculty}",
+                    "department": "${form.department}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ACCOUNT_INFO",
+      "title": "Step 3 of 4",
+      "data": {
+        "first_name": { "type": "string", "__example__": "Ade" },
+        "surname": { "type": "string", "__example__": "Balogun" },
+        "email": { "type": "string", "__example__": "ade.balogun@example.com" },
+        "school": { "type": "string", "__example__": "lasu" },
+        "faculty": { "type": "string", "__example__": "engineering" },
+        "department": { "type": "string", "__example__": "mechanical_engineering" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_account_info",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Your Student ID"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "So we can match you to your records"
+              },
+              {
+                "type": "TextInput",
+                "name": "matric_number",
+                "label": "Matric Number",
+                "input-type": "text",
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "level",
+                "label": "Level",
+                "required": true,
+                "data-source": [
+                  { "id": "100", "title": "100 Level" },
+                  { "id": "200", "title": "200 Level" },
+                  { "id": "300", "title": "300 Level" },
+                  { "id": "400", "title": "400 Level" },
+                  { "id": "500", "title": "500 Level" }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {
+                    "type": "screen",
+                    "name": "REFERRAL"
+                  },
+                  "payload": {
+                    "first_name": "${data.first_name}",
+                    "surname": "${data.surname}",
+                    "email": "${data.email}",
+                    "school": "${data.school}",
+                    "faculty": "${data.faculty}",
+                    "department": "${data.department}",
+                    "matric_number": "${form.matric_number}",
+                    "level": "${form.level}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "REFERRAL",
+      "title": "Step 4 of 4",
+      "terminal": true,
+      "data": {
+        "first_name": { "type": "string", "__example__": "Ade" },
+        "surname": { "type": "string", "__example__": "Balogun" },
+        "email": { "type": "string", "__example__": "ade.balogun@example.com" },
+        "school": { "type": "string", "__example__": "lasu" },
+        "faculty": { "type": "string", "__example__": "engineering" },
+        "department": { "type": "string", "__example__": "mechanical_engineering" },
+        "matric_number": { "type": "string", "__example__": "200401001" },
+        "level": { "type": "string", "__example__": "300" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_referral",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Almost done"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "Have a referral code? Enter it below (optional)"
+              },
+              {
+                "type": "TextInput",
+                "name": "referral_code",
+                "label": "Referral Code",
+                "input-type": "text",
+                "required": false
+              },
+              {
+                "type": "Footer",
+                "label": "Submit",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "first_name": "${data.first_name}",
+                    "surname": "${data.surname}",
+                    "email": "${data.email}",
+                    "school": "${data.school}",
+                    "faculty": "${data.faculty}",
+                    "department": "${data.department}",
+                    "matric_number": "${data.matric_number}",
+                    "level": "${data.level}",
+                    "referral_code": "${form.referral_code}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

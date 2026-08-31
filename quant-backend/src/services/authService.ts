@@ -20,6 +20,7 @@ interface RegisterInput {
   university: string;
   department: string;
   level: string;
+  referredByCode?: string;
 }
 
 export async function registerStudent(input: RegisterInput, isBotOrigin = false): Promise<StudentDoc> {
