@@ -114,13 +114,15 @@ export async function sendWhatsAppFlow(
   to: string,
   options: { headerText: string; bodyText: string; ctaText: string; firstScreen: string }
 ): Promise<void> {
+  // Unlike sendWhatsAppText/sendWhatsAppDocument, this must throw (not silently no-op)
+  // on missing config — the caller's try/catch is how it decides to fall back to the
+  // text wizard or web page. A silent skip here left users stuck with no message and
+  // no fallback at all.
   if (!env.META_WA_PHONE_NUMBER_ID || !env.META_WA_ACCESS_TOKEN) {
-    logger.warn("META_WA credentials not configured — skipping WhatsApp flow send", { to });
-    return;
+    throw new Error("META_WA credentials not configured");
   }
   if (!env.META_WA_REGISTRATION_FLOW_ID) {
-    logger.warn("META_WA_REGISTRATION_FLOW_ID not configured — skipping WhatsApp flow send", { to });
-    return;
+    throw new Error("META_WA_REGISTRATION_FLOW_ID not configured");
   }
 
   const url = `${GRAPH_BASE_URL}/${env.META_WA_PHONE_NUMBER_ID}/messages`;
