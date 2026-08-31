@@ -105,3 +105,60 @@ export async function sendWhatsAppDocument(to: string, fileUrl: string, filename
     throw new Error(`Failed to send WhatsApp document: ${res.status}`);
   }
 }
+
+/**
+ * Sends an interactive message that opens a WhatsApp Flow (native multi-screen
+ * form) — used to kick off registration instead of a field-by-field chat wizard.
+ */
+export async function sendWhatsAppFlow(
+  to: string,
+  options: { headerText: string; bodyText: string; ctaText: string; firstScreen: string }
+): Promise<void> {
+  if (!env.META_WA_PHONE_NUMBER_ID || !env.META_WA_ACCESS_TOKEN) {
+    logger.warn("META_WA credentials not configured — skipping WhatsApp flow send", { to });
+    return;
+  }
+  if (!env.META_WA_REGISTRATION_FLOW_ID) {
+    logger.warn("META_WA_REGISTRATION_FLOW_ID not configured — skipping WhatsApp flow send", { to });
+    return;
+  }
+
+  const url = `${GRAPH_BASE_URL}/${env.META_WA_PHONE_NUMBER_ID}/messages`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.META_WA_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: to.replace("+", ""),
+      type: "interactive",
+      interactive: {
+        type: "flow",
+        header: { type: "text", text: options.headerText },
+        body: { text: options.bodyText },
+        action: {
+          name: "flow",
+          parameters: {
+            flow_message_version: "3",
+            flow_token: crypto.randomBytes(16).toString("hex"),
+            flow_id: env.META_WA_REGISTRATION_FLOW_ID,
+            flow_cta: options.ctaText,
+            flow_action: "navigate",
+            // Meta's API rejects an empty `data: {}` here with a "must be dynamic_object"
+            // error — omit it entirely when there's nothing to pre-populate the screen with.
+            flow_action_payload: { screen: options.firstScreen },
+          },
+        },
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    logger.error("WhatsApp flow send failed", { status: res.status, body: errBody });
+    throw new Error(`Failed to send WhatsApp flow: ${res.status}`);
+  }
+}

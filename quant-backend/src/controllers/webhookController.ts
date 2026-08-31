@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { env } from "../config/env";
 import { logger } from "../utils/logger";
 import { verifyWebhookSignature, metaPhoneToE164 } from "../services/waService";
-import { processIncomingMessage } from "../services/waConversationService";
+import { processIncomingMessage, processFlowSubmission } from "../services/waConversationService";
 
 /**
  * Meta's one-time handshake when you set the webhook URL in the Meta app
@@ -30,8 +30,10 @@ type MetaWebhookPayload = {
           type?: string;
           text?: { body?: string };
           interactive?: {
+            type?: string;
             button_reply?: { id?: string; title?: string };
             list_reply?: { id?: string; title?: string };
+            nfm_reply?: { response_json?: string };
           };
         }>;
       };
@@ -58,8 +60,21 @@ export function handleIncoming(req: Request, res: Response): void {
 
   for (const message of messages) {
     if (!message.from) continue;
-
     const from = metaPhoneToE164(message.from);
+
+    if (message.interactive?.type === "nfm_reply") {
+      const responseJson = message.interactive.nfm_reply?.response_json;
+      if (!responseJson) continue;
+
+      processFlowSubmission(from, responseJson).catch((err) => {
+        logger.error("WhatsApp flow submission processing failed", {
+          from,
+          error: err instanceof Error ? err.message : "Unknown webhook error",
+        });
+      });
+      continue;
+    }
+
     const body =
       message.text?.body ??
       message.interactive?.button_reply?.title ??

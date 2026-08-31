@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { Student, StudentDoc } from "../models/Student";
 import * as authService from "./authService";
 import { verifyOtp, issueOtp } from "./otpService";
-import { sendWhatsAppText, sendWhatsAppDocument } from "./waService";
+import { sendWhatsAppText, sendWhatsAppDocument, sendWhatsAppFlow } from "./waService";
 import { getWaSession, setWaSession, clearWaSession, appendWaHistory, WaState } from "./waSession";
 import { completeChat, ChatMessage } from "./groqAgentService";
 import { TOOL_DEFINITIONS, executeTool } from "./waTools";
@@ -60,16 +60,14 @@ tables or headers, no long paragraphs.`;
 // numbers still run fully in parallel — only same-phone calls are chained.
 const processingQueues = new Map<string, Promise<void>>();
 
-export function processIncomingMessage(from: string, body: string): Promise<void> {
+function enqueue(from: string, task: () => Promise<void>, errorLabel: string): Promise<void> {
   const previous = processingQueues.get(from) ?? Promise.resolve();
-  const next = previous
-    .then(() => processIncomingMessageInner(from, body))
-    .catch((err) => {
-      logger.error("WhatsApp message processing failed", {
-        from,
-        error: err instanceof Error ? err.message : "unknown",
-      });
+  const next = previous.then(task).catch((err) => {
+    logger.error(errorLabel, {
+      from,
+      error: err instanceof Error ? err.message : "unknown",
     });
+  });
 
   processingQueues.set(from, next);
   next.finally(() => {
@@ -77,6 +75,10 @@ export function processIncomingMessage(from: string, body: string): Promise<void
   });
 
   return next;
+}
+
+export function processIncomingMessage(from: string, body: string): Promise<void> {
+  return enqueue(from, () => processIncomingMessageInner(from, body), "WhatsApp message processing failed");
 }
 
 async function processIncomingMessageInner(from: string, body: string): Promise<void> {
@@ -186,6 +188,115 @@ async function runAgent(from: string, student: StudentDoc, input: string): Promi
   ]);
 }
 
+interface RegistrationFields {
+  fullName: string;
+  email: string;
+  matricNumber: string;
+  university: string;
+  department: string;
+  level: string;
+  referredByCode?: string;
+}
+
+/**
+ * Shared by both registration paths (text wizard and Flow submission): creates
+ * the account and sends the email OTP, with the same dead-end recovery — if the
+ * account got created but the OTP send failed, resend rather than error out on
+ * a duplicate-account conflict when they retry.
+ */
+async function completeRegistration(from: string, fields: RegistrationFields): Promise<void> {
+  try {
+    await authService.registerStudent(
+      {
+        ...fields,
+        phone: from,
+        // Bot-registered students only ever interact over WhatsApp — a web portal
+        // password only matters if they're later made an ambassador, at which
+        // point they'd need a password-reset flow (not built yet).
+        password: crypto.randomBytes(24).toString("hex"),
+      },
+      true // bot-origin: phone auto-verified, only an email OTP goes out
+    );
+  } catch (err) {
+    const existing = await Student.findOne({ phone: from });
+    if (existing) {
+      try {
+        await issueOtp(existing.email, "email", "email_verification");
+        setWaSession(from, "AWAITING_EMAIL_OTP");
+        await reply(from, fmt.formatRegistrationComplete());
+      } catch {
+        clearWaSession(from);
+        await reply(
+          from,
+          "⚠️ I couldn't send a verification code to that email address. " +
+            "Type *hi* to start over with a different email."
+        );
+      }
+      return;
+    }
+
+    clearWaSession(from);
+    const message = err instanceof Error ? err.message : "Something went wrong";
+    await reply(from, `⚠️ ${message}\n\nType *hi* to try registering again.`);
+    return;
+  }
+
+  setWaSession(from, "AWAITING_EMAIL_OTP");
+  await reply(from, fmt.formatRegistrationComplete());
+}
+
+// The Flow's dropdowns submit stable ids, not the display text — map back to the
+// free-text values Student stores (matches how the rest of the system already
+// records university/department, e.g. "LASU").
+const SCHOOL_NAMES: Record<string, string> = {
+  lasu: "LASU",
+};
+
+const DEPARTMENT_NAMES: Record<string, string> = {
+  aeronautics_astronautics: "Aeronautics and Astronautics Engineering",
+  aerospace_engineering: "Aerospace Engineering",
+  chemical_engineering: "Chemical Engineering",
+  electronics_computer_engineering: "Electronics and Computer Engineering",
+  mechanical_engineering: "Mechanical Engineering",
+};
+
+interface FlowRegistrationResponse {
+  first_name: string;
+  surname: string;
+  email: string;
+  school: string;
+  faculty: string; // collected but not persisted — Student has no faculty field
+  department: string;
+  matric_number: string;
+  level: string;
+  referral_code?: string;
+}
+
+/** Handles the final `nfm_reply` webhook message once the registration Flow is submitted. */
+export function processFlowSubmission(from: string, responseJson: string): Promise<void> {
+  return enqueue(from, () => processFlowSubmissionInner(from, responseJson), "WhatsApp flow submission processing failed");
+}
+
+async function processFlowSubmissionInner(from: string, responseJson: string): Promise<void> {
+  let data: FlowRegistrationResponse;
+  try {
+    data = JSON.parse(responseJson);
+  } catch {
+    logger.error("Failed to parse Flow response_json", { from });
+    return;
+  }
+
+  await completeRegistration(from, {
+    fullName: `${data.first_name} ${data.surname}`.trim(),
+    email: data.email,
+    matricNumber: data.matric_number,
+    university: SCHOOL_NAMES[data.school] ?? data.school,
+    department: DEPARTMENT_NAMES[data.department] ?? data.department,
+    level: data.level,
+    referredByCode: data.referral_code || undefined,
+  });
+}
+
 async function handleRegistration(
   from: string,
   input: string,
@@ -193,8 +304,28 @@ async function handleRegistration(
   data: Record<string, unknown>
 ): Promise<void> {
   if (state === "IDLE") {
-    setWaSession(from, "AWAITING_REG_NAME");
-    await reply(from, fmt.formatWelcome());
+    try {
+      await sendWhatsAppFlow(from, {
+        headerText: "Welcome to Quant",
+        bodyText: "Let's get you registered — tap below to fill in your details.",
+        ctaText: "Register",
+        firstScreen: "PERSONAL_INFO",
+      });
+      setWaSession(from, "AWAITING_FLOW_SUBMISSION");
+    } catch (err) {
+      // Flow send failed (e.g. it's still unpublished/pending Business Verification)
+      // — fall back to the old field-by-field chat wizard rather than going silent.
+      logger.warn("Falling back to text-based registration wizard", {
+        error: err instanceof Error ? err.message : "unknown",
+      });
+      setWaSession(from, "AWAITING_REG_NAME");
+      await reply(from, fmt.formatWelcome());
+    }
+    return;
+  }
+
+  if (state === "AWAITING_FLOW_SUBMISSION") {
+    await reply(from, "Just fill in the form above 👆 to finish registering — or type *hi* to restart.");
     return;
   }
 
@@ -229,53 +360,14 @@ async function handleRegistration(
       return;
     }
     case "AWAITING_REG_LEVEL": {
-      try {
-        await authService.registerStudent(
-          {
-            fullName: data.fullName as string,
-            phone: from,
-            email: data.email as string,
-            // Bot-registered students only ever interact over WhatsApp — a web
-            // portal password only matters if they're later made an ambassador,
-            // at which point they'd need a password-reset flow (not built yet).
-            password: crypto.randomBytes(24).toString("hex"),
-            matricNumber: data.matricNumber as string,
-            university: data.university as string,
-            department: data.department as string,
-            level: input,
-          },
-          true // bot-origin: phone auto-verified, only an email OTP goes out
-        );
-      } catch (err) {
-        // registerStudent creates the Student row before it sends the email OTP, so a
-        // failure here (e.g. the email provider rejecting the address) can still leave
-        // an account behind. Retrying "register" would then dead-end on a duplicate-
-        // account conflict — recover by just re-sending the OTP for that account instead.
-        const existing = await Student.findOne({ phone: from });
-        if (existing) {
-          try {
-            await issueOtp(existing.email, "email", "email_verification");
-            setWaSession(from, "AWAITING_EMAIL_OTP");
-            await reply(from, fmt.formatRegistrationComplete());
-          } catch {
-            clearWaSession(from);
-            await reply(
-              from,
-              "⚠️ I couldn't send a verification code to that email address. " +
-                "Type *hi* to start over with a different email."
-            );
-          }
-          return;
-        }
-
-        clearWaSession(from);
-        const message = err instanceof Error ? err.message : "Something went wrong";
-        await reply(from, `⚠️ ${message}\n\nType *hi* to try registering again.`);
-        return;
-      }
-
-      setWaSession(from, "AWAITING_EMAIL_OTP");
-      await reply(from, fmt.formatRegistrationComplete());
+      await completeRegistration(from, {
+        fullName: data.fullName as string,
+        email: data.email as string,
+        matricNumber: data.matricNumber as string,
+        university: data.university as string,
+        department: data.department as string,
+        level: input,
+      });
       return;
     }
     case "AWAITING_EMAIL_OTP": {
