@@ -3,25 +3,10 @@ import { StudentDoc } from "../models/Student";
 export function formatWelcome(): string {
   return (
     "👋 Welcome to *Quant* — your course material assistant.\n\n" +
-    "Let's get you registered. What's your full name?"
+    "Let's get you registered — just send your *full name, email, matric number, " +
+    "university, department, and level* all in one message, any order you like. " +
+    "I'll sort it out."
   );
-}
-
-export function formatRegistrationPrompt(
-  field: "email" | "matric" | "university" | "department" | "level"
-): string {
-  switch (field) {
-    case "email":
-      return "What's your email address?";
-    case "matric":
-      return "What's your matric number?";
-    case "university":
-      return "Which university/institution are you in?";
-    case "department":
-      return "What department?";
-    case "level":
-      return "What level are you? (e.g. 100, 200, 300)";
-  }
 }
 
 export function formatRegistrationComplete(): string {

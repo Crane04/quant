@@ -4,7 +4,7 @@ import * as authService from "./authService";
 import { verifyOtp, issueOtp } from "./otpService";
 import { sendWhatsAppText, sendWhatsAppDocument, sendWhatsAppFlow, sendWhatsAppCtaUrl } from "./waService";
 import { getWaSession, setWaSession, clearWaSession, appendWaHistory, WaState } from "./waSession";
-import { completeChat, ChatMessage } from "./groqAgentService";
+import { completeChat, completeJson, ChatMessage } from "./groqAgentService";
 import { TOOL_DEFINITIONS, executeTool } from "./waTools";
 import { createRegistrationToken } from "./registrationTokenService";
 import { logger } from "../utils/logger";
@@ -190,6 +190,65 @@ async function runAgent(from: string, student: StudentDoc, input: string): Promi
   ]);
 }
 
+const REQUIRED_REG_FIELDS = ["fullName", "email", "matricNumber", "university", "department", "level"] as const;
+const REG_FIELD_LABELS: Record<(typeof REQUIRED_REG_FIELDS)[number], string> = {
+  fullName: "full name",
+  email: "email",
+  matricNumber: "matric number",
+  university: "university",
+  department: "department",
+  level: "level",
+};
+
+const REG_EXTRACTION_SYSTEM_PROMPT = `You extract student registration details from a WhatsApp message. The
+student may give details in any order or format, possibly spread across multiple messages.
+
+Fields:
+- fullName: their full name
+- email: a valid email address
+- matricNumber: their matric/student ID number
+- university: school/institution name (e.g. "LASU")
+- department: academic department (e.g. "Mechanical Engineering")
+- level: academic level — must be exactly one of "100", "200", "300", "400", "500"
+
+From the student's latest message, extract any NEW values for fields not yet known, or
+clear corrections to ones that are. Only include a field if you're confident about it —
+never guess or invent a value, and never fabricate an email or matric number that isn't
+actually present in the message. Omit a field entirely if it's not mentioned.
+
+Return strict JSON with only the keys you extracted, e.g. {"fullName": "Ada Lovelace", "level": "300"}.`;
+
+/** Extracts whatever registration fields it can from one free-form message. */
+async function extractRegistrationFields(
+  input: string,
+  known: Record<string, unknown>
+): Promise<Record<string, string>> {
+  const result = await completeJson([
+    { role: "system", content: REG_EXTRACTION_SYSTEM_PROMPT },
+    { role: "user", content: `Already known: ${JSON.stringify(known)}\n\nLatest message: ${input}` },
+  ]);
+  if (!result) return {};
+
+  const extracted: Record<string, string> = {};
+  for (const field of REQUIRED_REG_FIELDS) {
+    const value = result[field];
+    if (typeof value === "string" && value.trim()) extracted[field] = value.trim();
+  }
+
+  if (extracted.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(extracted.email)) delete extracted.email;
+  if (extracted.email) extracted.email = extracted.email.toLowerCase();
+  if (extracted.level && !["100", "200", "300", "400", "500"].includes(extracted.level)) delete extracted.level;
+
+  // Deterministic fallback for common shorthand ("200l", "300L", "400lvl", "yr 4") the
+  // model can miss — don't rely on it alone for something a regex nails reliably.
+  if (!extracted.level && !known.level) {
+    const shorthand = input.match(/\b(100|200|300|400|500)\s*(?:l|lvl|level)\b/i);
+    if (shorthand) extracted.level = shorthand[1];
+  }
+
+  return extracted;
+}
+
 export interface RegistrationFields {
   fullName: string;
   email: string;
@@ -341,7 +400,7 @@ async function handleRegistration(
           });
         }
       } else {
-        setWaSession(from, "AWAITING_REG_NAME");
+        setWaSession(from, "AWAITING_REG_DETAILS");
         await reply(from, fmt.formatWelcome());
       }
     }
@@ -359,43 +418,31 @@ async function handleRegistration(
   }
 
   switch (state) {
-    case "AWAITING_REG_NAME": {
-      if (input.length < 2) return void (await reply(from, "That name looks too short — try again?"));
-      setWaSession(from, "AWAITING_REG_EMAIL", { fullName: input });
-      await reply(from, fmt.formatRegistrationPrompt("email"));
-      return;
-    }
-    case "AWAITING_REG_EMAIL": {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input)) {
-        return void (await reply(from, "That doesn't look like a valid email — try again?"));
+    case "AWAITING_REG_DETAILS": {
+      const extracted = await extractRegistrationFields(input, data);
+      setWaSession(from, "AWAITING_REG_DETAILS", extracted);
+
+      const merged = { ...data, ...extracted } as Record<string, string | undefined>;
+      const missing = REQUIRED_REG_FIELDS.filter((field) => !merged[field]);
+
+      if (missing.length > 0) {
+        const list = missing.map((field) => REG_FIELD_LABELS[field]).join(", ");
+        await reply(
+          from,
+          Object.keys(extracted).length > 0
+            ? `Got it. Still need your ${list} to finish up.`
+            : `I couldn't quite pick that up — still need your ${list}.`
+        );
+        return;
       }
-      setWaSession(from, "AWAITING_REG_MATRIC", { email: input.toLowerCase() });
-      await reply(from, fmt.formatRegistrationPrompt("matric"));
-      return;
-    }
-    case "AWAITING_REG_MATRIC": {
-      setWaSession(from, "AWAITING_REG_UNIVERSITY", { matricNumber: input });
-      await reply(from, fmt.formatRegistrationPrompt("university"));
-      return;
-    }
-    case "AWAITING_REG_UNIVERSITY": {
-      setWaSession(from, "AWAITING_REG_DEPARTMENT", { university: input });
-      await reply(from, fmt.formatRegistrationPrompt("department"));
-      return;
-    }
-    case "AWAITING_REG_DEPARTMENT": {
-      setWaSession(from, "AWAITING_REG_LEVEL", { department: input });
-      await reply(from, fmt.formatRegistrationPrompt("level"));
-      return;
-    }
-    case "AWAITING_REG_LEVEL": {
+
       await completeRegistration(from, {
-        fullName: data.fullName as string,
-        email: data.email as string,
-        matricNumber: data.matricNumber as string,
-        university: data.university as string,
-        department: data.department as string,
-        level: input,
+        fullName: merged.fullName!,
+        email: merged.email!,
+        matricNumber: merged.matricNumber!,
+        university: merged.university!,
+        department: merged.department!,
+        level: merged.level!,
       });
       return;
     }

@@ -4,20 +4,17 @@ import { ChatMessage } from "./groqAgentService";
 // Not the same thing as src/models/Session.ts (that's admin/student login sessions).
 // Single-process only — fine for now, swap for Redis if this ever runs multi-instance.
 
-// Registration is the only thing still a rigid step-by-step wizard — it's collecting
-// exact account data gated by an email OTP, not a "look something up" conversation.
+// Registration is the only thing still gated by explicit states (it's collecting
+// exact account data behind an email OTP). It's not a rigid one-field-per-message
+// wizard though — AWAITING_REG_DETAILS accepts everything in one free-form message
+// and extracts fields via the LLM, only asking follow-ups for what's still missing.
 // Everything else (IDLE) runs through the tool-calling agent, which uses its own
 // message history for multi-turn context instead of explicit states.
 export type WaState =
   | "IDLE"
   | "AWAITING_FLOW_SUBMISSION"
   | "AWAITING_WEB_REGISTRATION"
-  | "AWAITING_REG_NAME"
-  | "AWAITING_REG_EMAIL"
-  | "AWAITING_REG_MATRIC"
-  | "AWAITING_REG_UNIVERSITY"
-  | "AWAITING_REG_DEPARTMENT"
-  | "AWAITING_REG_LEVEL"
+  | "AWAITING_REG_DETAILS"
   | "AWAITING_EMAIL_OTP";
 
 export interface WaSession {

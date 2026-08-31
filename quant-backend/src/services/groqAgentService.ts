@@ -56,3 +56,43 @@ export async function completeChat(
     return null;
   }
 }
+
+/** One-shot structured extraction — no tools, forces a JSON object response. */
+export async function completeJson(messages: ChatMessage[]): Promise<Record<string, unknown> | null> {
+  if (!env.GROQ_API_KEY) {
+    logger.warn("GROQ_API_KEY not configured — extraction unavailable");
+    return null;
+  }
+
+  try {
+    const res = await fetch(GROQ_CHAT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: env.GROQ_MODEL,
+        temperature: 0,
+        messages,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!res.ok) {
+      logger.error("Groq extraction request failed", { status: res.status, body: await res.text() });
+      return null;
+    }
+
+    const data = (await res.json()) as GroqResponse;
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) return null;
+
+    try {
+      return JSON.parse(content);
+    } catch {
+      logger.error("Groq extraction returned invalid JSON", { content });
+      return null;
+    }
+  } catch (err) {
+    logger.error("Groq extraction request errored", { error: err instanceof Error ? err.message : "unknown" });
+    return null;
+  }
+}
