@@ -19,6 +19,13 @@ const envSchema = z.object({
   META_WA_PHONE_NUMBER_ID: z.string().optional().default(""),
   META_WA_ACCESS_TOKEN: z.string().optional().default(""),
   META_WA_VERIFY_TOKEN: z.string().optional().default(""),
+  META_WA_APP_SECRET: z.string().optional().default(""), // for X-Hub-Signature-256 verification
+
+  GROQ_API_KEY: z.string().optional().default(""),
+  GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
+
+  // Base URL this API is reachable at — used to build the /view/:id links sent over WhatsApp
+  APP_BASE_URL: z.string().default("http://localhost:4000"),
 
   RESEND_API_KEY: z.string().optional().default(""),
   MAIL_FROM: z.string().optional().default("Quant <no-reply@quant.app>"),

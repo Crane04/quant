@@ -8,6 +8,7 @@ declare global {
       isBotService?: boolean;
       studentId?: string;
       admin?: SafeAdmin;
+      rawBody?: Buffer;
     }
   }
 }

@@ -5,12 +5,14 @@ import { logger } from "./utils/logger";
 import { ensureDefaultAdmin } from "./services/adminAuthService";
 import { ensureDefaultBadges } from "./services/badgeService";
 import { ensureDefaultRewards } from "./services/rewardService";
+import { startAssignmentReminderScheduler } from "./services/reminderService";
 
 async function main() {
   await connectDB();
   await ensureDefaultAdmin();
   await ensureDefaultBadges();
   await ensureDefaultRewards();
+  startAssignmentReminderScheduler();
 
   const app = createApp();
 
