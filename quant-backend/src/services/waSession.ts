@@ -11,6 +11,7 @@ import { ChatMessage } from "./groqAgentService";
 export type WaState =
   | "IDLE"
   | "AWAITING_FLOW_SUBMISSION"
+  | "AWAITING_WEB_REGISTRATION"
   | "AWAITING_REG_NAME"
   | "AWAITING_REG_EMAIL"
   | "AWAITING_REG_MATRIC"

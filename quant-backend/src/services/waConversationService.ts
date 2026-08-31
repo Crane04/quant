@@ -6,7 +6,9 @@ import { sendWhatsAppText, sendWhatsAppDocument, sendWhatsAppFlow } from "./waSe
 import { getWaSession, setWaSession, clearWaSession, appendWaHistory, WaState } from "./waSession";
 import { completeChat, ChatMessage } from "./groqAgentService";
 import { TOOL_DEFINITIONS, executeTool } from "./waTools";
+import { createRegistrationToken } from "./registrationTokenService";
 import { logger } from "../utils/logger";
+import { env } from "../config/env";
 import * as fmt from "./waFormatter";
 
 const MAX_TOOL_ITERATIONS = 5;
@@ -188,7 +190,7 @@ async function runAgent(from: string, student: StudentDoc, input: string): Promi
   ]);
 }
 
-interface RegistrationFields {
+export interface RegistrationFields {
   fullName: string;
   email: string;
   matricNumber: string;
@@ -199,12 +201,12 @@ interface RegistrationFields {
 }
 
 /**
- * Shared by both registration paths (text wizard and Flow submission): creates
- * the account and sends the email OTP, with the same dead-end recovery — if the
- * account got created but the OTP send failed, resend rather than error out on
- * a duplicate-account conflict when they retry.
+ * Shared by all three registration paths (text wizard, WhatsApp Flow, and the
+ * web fallback page): creates the account and sends the email OTP, with the
+ * same dead-end recovery — if the account got created but the OTP send failed,
+ * resend rather than error out on a duplicate-account conflict when they retry.
  */
-async function completeRegistration(from: string, fields: RegistrationFields): Promise<void> {
+export async function completeRegistration(from: string, fields: RegistrationFields): Promise<void> {
   try {
     await authService.registerStudent(
       {
@@ -314,18 +316,35 @@ async function handleRegistration(
       setWaSession(from, "AWAITING_FLOW_SUBMISSION");
     } catch (err) {
       // Flow send failed (e.g. it's still unpublished/pending Business Verification)
-      // — fall back to the old field-by-field chat wizard rather than going silent.
-      logger.warn("Falling back to text-based registration wizard", {
+      // — fall back rather than going silent. Which fallback is a toggle (env var),
+      // not a code change, so it's cheap to flip once the Flow is publishable again.
+      logger.warn("WhatsApp Flow send failed, using registration fallback", {
+        fallback: env.REGISTRATION_FALLBACK,
         error: err instanceof Error ? err.message : "unknown",
       });
-      setWaSession(from, "AWAITING_REG_NAME");
-      await reply(from, fmt.formatWelcome());
+
+      if (env.REGISTRATION_FALLBACK === "web") {
+        const token = createRegistrationToken(from);
+        setWaSession(from, "AWAITING_WEB_REGISTRATION");
+        await reply(
+          from,
+          `Let's get you registered — tap the link below:\n\n${env.APP_BASE_URL}/register/${token}\n\n(expires in 30 minutes)`
+        );
+      } else {
+        setWaSession(from, "AWAITING_REG_NAME");
+        await reply(from, fmt.formatWelcome());
+      }
     }
     return;
   }
 
   if (state === "AWAITING_FLOW_SUBMISSION") {
     await reply(from, "Just fill in the form above 👆 to finish registering — or type *hi* to restart.");
+    return;
+  }
+
+  if (state === "AWAITING_WEB_REGISTRATION") {
+    await reply(from, "Just fill in the form from the link above 👆 to finish registering — or type *hi* for a new link.");
     return;
   }
 

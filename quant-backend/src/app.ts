@@ -8,6 +8,7 @@ import swaggerUi from "swagger-ui-express";
 import routes from "./routes";
 import webhookRoutes from "./routes/webhookRoutes";
 import viewRoutes from "./routes/viewRoutes";
+import registerRoutes from "./routes/registerRoutes";
 import { notFoundHandler, errorHandler } from "./middleware/errorHandler";
 import { env } from "./config/env";
 import { swaggerSpec } from "./config/swagger";
@@ -68,6 +69,15 @@ export function createApp() {
       next();
     },
     viewRoutes
+  );
+  app.use(
+    "/register",
+    (_req: Request, res: Response, next: NextFunction) => {
+      // the registration page's inline <style> doesn't fit under the API's default CSP
+      res.removeHeader("Content-Security-Policy");
+      next();
+    },
+    registerRoutes
   );
 
   app.use(notFoundHandler);

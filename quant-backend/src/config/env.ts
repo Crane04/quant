@@ -23,6 +23,10 @@ const envSchema = z.object({
   META_WA_FLOW_PRIVATE_KEY_B64: z.string().optional().default(""), // RSA private key, base64-encoded PEM
   META_WA_REGISTRATION_FLOW_ID: z.string().optional().default(""),
 
+  // Fallback used when the WhatsApp Flow send fails (e.g. it's unpublished) — "web"
+  // sends a link to the /register page, "text" uses the field-by-field chat wizard.
+  REGISTRATION_FALLBACK: z.enum(["web", "text"]).default("text"),
+
   GROQ_API_KEY: z.string().optional().default(""),
   GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
 
