@@ -48,6 +48,7 @@ const formatBytes = (bytes: number) => {
 
 const uploaderName = (doc: PDFDoc) => {
   if (doc.uploadedByType === "Admin") return "Admin";
+  if (doc.uploadedBy === null) return "Deleted student"; // was populated, but the student no longer exists
   if (typeof doc.uploadedBy === "string") return "Student";
   return doc.uploadedBy.fullName || doc.uploadedBy.email || "Student";
 };
@@ -332,12 +333,18 @@ export default function DocumentsPage() {
                   </td>
 
                   <td className="px-4 py-3">
-                    <p className="text-sm font-mono text-brand-400">{doc.course.code}</p>
-                    <p className="text-xs text-zinc-500">{doc.course.title}</p>
-                    <span className="text-xs bg-zinc-800 text-zinc-400 rounded px-2 py-0.5 mt-1 inline-block">
-                      {doc.course.level}L
-                    </span>
-                    <span className="ml-1.5 text-xs text-zinc-600 capitalize">{doc.course.semester}</span>
+                    {doc.course ? (
+                      <>
+                        <p className="text-sm font-mono text-brand-400">{doc.course.code}</p>
+                        <p className="text-xs text-zinc-500">{doc.course.title}</p>
+                        <span className="text-xs bg-zinc-800 text-zinc-400 rounded px-2 py-0.5 mt-1 inline-block">
+                          {doc.course.level}L
+                        </span>
+                        <span className="ml-1.5 text-xs text-zinc-600 capitalize">{doc.course.semester}</span>
+                      </>
+                    ) : (
+                      <p className="text-sm text-zinc-600 italic">Deleted course</p>
+                    )}
                   </td>
 
                   <td className="px-4 py-3">

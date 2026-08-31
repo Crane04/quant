@@ -12,7 +12,7 @@ export default function OverviewPage() {
 
   const docs = data?.data || [];
   const totalDownloads = docs.reduce((sum: number, d: PDFDoc) => sum + d.downloadCount, 0);
-  const uniqueCourses = new Set(docs.map((d: PDFDoc) => d.course.code)).size;
+  const uniqueCourses = new Set(docs.map((d: PDFDoc) => d.course?.code).filter(Boolean)).size;
 
   const recent = [...docs]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -70,7 +70,7 @@ export default function OverviewPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-zinc-200 truncate">{doc.title}</p>
-                    <p className="text-xs text-zinc-500 font-mono">{doc.course.code}</p>
+                    <p className="text-xs text-zinc-500 font-mono">{doc.course?.code || "Unknown course"}</p>
                   </div>
                 </div>
               ))
@@ -90,7 +90,7 @@ export default function OverviewPage() {
                   <span className="text-xs font-mono text-zinc-600 w-4">{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-zinc-200 truncate">{doc.title}</p>
-                    <p className="text-xs text-zinc-500 font-mono">{doc.course.code}</p>
+                    <p className="text-xs text-zinc-500 font-mono">{doc.course?.code || "Unknown course"}</p>
                   </div>
                   <div className="flex items-center gap-1 text-xs text-zinc-500">
                     <Download size={11} />

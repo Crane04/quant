@@ -22,7 +22,7 @@ const formatDate = (value?: string | null) => {
 };
 
 const creatorName = (announcement: Announcement) => {
-  if (typeof announcement.createdBy === "string") return announcement.createdByType;
+  if (!announcement.createdBy || typeof announcement.createdBy === "string") return announcement.createdByType;
   return announcement.createdBy.fullName || announcement.createdBy.email || announcement.createdByType;
 };
 

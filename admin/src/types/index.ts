@@ -24,7 +24,7 @@ export interface UploaderRef {
 export interface PDFDoc {
   _id: string;
   title: string;
-  course: CourseRef;
+  course: CourseRef | null;
   fileUrl: string;
   fileType: string;
   sizeBytes: number;
@@ -32,7 +32,7 @@ export interface PDFDoc {
   downloadCount: number;
   category: DocumentCategory;
   uploadedByType: "Admin" | "Student";
-  uploadedBy: UploaderRef | string;
+  uploadedBy: UploaderRef | string | null;
   status: DocumentStatus;
   pointsAwarded: number;
   reviewedBy?: string;
@@ -167,8 +167,8 @@ export interface Reward {
 
 export interface RewardRedemption {
   _id: string;
-  student: UploaderRef | string;
-  reward: Reward | string;
+  student: UploaderRef | string | null;
+  reward: Reward | string | null;
   pointsCost: number;
   status: "success" | "failed";
   selectedSize?: string;
@@ -188,7 +188,7 @@ export interface Announcement {
   department: string;
   level: string;
   createdByType: "Student" | "Admin";
-  createdBy: UploaderRef | string;
+  createdBy: UploaderRef | string | null;
   sentAt?: string | null;
   createdAt: string;
 }
