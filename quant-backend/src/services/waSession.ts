@@ -25,7 +25,12 @@ export interface WaSession {
   updatedAt: number;
 }
 
-const SESSION_TTL_MS = 10 * 60 * 1000;
+// 60 min, not 10 — a student stepping away to check their email for an OTP code
+// (or just pausing mid-conversation) easily outlasts a short TTL, and losing
+// AWAITING_REG_DETAILS progress or falling out of AWAITING_EMAIL_OTP mid-verification
+// silently breaks the flow (see waConversationService's isEmailVerified DB check,
+// which is the backstop for OTP specifically — this TTL bump covers the rest).
+const SESSION_TTL_MS = 60 * 60 * 1000;
 const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 const MAX_HISTORY_MESSAGES = 16;
 

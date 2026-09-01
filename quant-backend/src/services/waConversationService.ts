@@ -96,12 +96,19 @@ async function processIncomingMessageInner(from: string, body: string): Promise<
   const student = await Student.findOne({ phone: from });
   const wa = getWaSession(from);
 
-  // Unregistered, or mid-registration (e.g. still waiting on the email OTP) — the
-  // structured wizard owns this conversation until it's done. Registration needs
-  // exact field-by-field data collection gated by an OTP, which isn't a good fit
-  // for a tool-calling agent that might paraphrase or skip a field.
-  if (!student || wa.state !== "IDLE") {
-    await handleRegistration(from, input, wa.state, wa.data);
+  // Unregistered, mid-registration, or registered-but-unverified — the structured
+  // wizard owns this conversation until it's done. Registration needs exact
+  // field-by-field data collection gated by an OTP, which isn't a good fit for a
+  // tool-calling agent that might paraphrase or skip a field.
+  //
+  // Verification status is checked against the DB, not just wa.state: the in-memory
+  // session has a TTL, and a student who steps away to check their email for the OTP
+  // (completely normal) can easily outlast it. Without this, their session would
+  // silently reset to IDLE and their code — or "resend" request — would get routed
+  // to the general assistant, which has no idea a verification is pending.
+  if (!student || !student.isEmailVerified || wa.state !== "IDLE") {
+    const state = student && !student.isEmailVerified && wa.state === "IDLE" ? "AWAITING_EMAIL_OTP" : wa.state;
+    await handleRegistration(from, input, state, wa.data);
     return;
   }
 
@@ -459,6 +466,17 @@ async function handleRegistration(
         return;
       }
 
+      if (/^resend/i.test(input.trim())) {
+        try {
+          await issueOtp(email, "email", "email_verification");
+          setWaSession(from, "AWAITING_EMAIL_OTP");
+          await reply(from, "✅ Sent a new 6-digit code to your email — reply with it here.");
+        } catch {
+          await reply(from, "⚠️ Couldn't send a new code right now — try again in a bit.");
+        }
+        return;
+      }
+
       try {
         await verifyOtp(email, "email_verification", input.trim());
         const student = await Student.findOneAndUpdate(
@@ -470,7 +488,7 @@ async function handleRegistration(
         await reply(from, fmt.formatEmailVerified(student!));
       } catch (err) {
         const message = err instanceof Error ? err.message : "That code didn't work";
-        await reply(from, `⚠️ ${message} — try again.`);
+        await reply(from, `⚠️ ${message} — try again, or type *resend* for a new code.`);
       }
       return;
     }
