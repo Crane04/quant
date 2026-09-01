@@ -128,18 +128,13 @@ const options: swaggerJsdoc.Options = {
           type: "object",
           properties: {
             _id: { type: "string" },
-            course: { type: "string" },
+            student: { type: "string" },
+            courseLabel: { type: "string" },
             title: { type: "string" },
-            description: { type: "string" },
             dueDate: { type: "string", format: "date-time" },
-            attachmentUrl: { type: "string" },
+            completed: { type: "boolean" },
+            completedAt: { type: "string", format: "date-time" },
           },
-        },
-        AssignmentWithStatus: {
-          allOf: [
-            { $ref: "#/components/schemas/Assignment" },
-            { type: "object", properties: { completed: { type: "boolean" } } },
-          ],
         },
         LectureSummary: {
           type: "object",

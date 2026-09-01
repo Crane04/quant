@@ -4,7 +4,6 @@ export * from "./Course";
 export * from "./StudentCourse";
 export * from "./TimetableSlot";
 export * from "./Assignment";
-export * from "./StudentAssignmentStatus";
 export * from "./LectureSummary";
 export * from "./DocumentFile";
 export * from "./GradeRecord";
