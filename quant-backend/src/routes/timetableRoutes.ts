@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { requireBotApiKey } from "../middleware/requireBotApiKey";
 import { resolveStudentContext } from "../middleware/resolveStudentContext";
+import { requireAmbassador } from "../middleware/requireAmbassador";
 import { validate } from "../middleware/validate";
 import * as timetableController from "../controllers/timetableController";
 import {
@@ -66,8 +66,11 @@ router.get("/course/:courseId", timetableController.getCourseTimetable);
  * /timetable:
  *   post:
  *     tags: [Timetable]
- *     summary: Create a timetable slot (trusted service)
- *     security: [{ botServiceKey: [] }]
+ *     summary: Create a timetable slot (HOC Hub, ambassadors only)
+ *     description: >
+ *       The course must belong to the creating ambassador's own (university,
+ *       department, level) — an HOC can only manage their own class's timetable.
+ *     security: [{ studentSession: [] }, { botServiceKey: [] }]
  *     requestBody:
  *       required: true
  *       content:
@@ -92,11 +95,13 @@ router.get("/course/:courseId", timetableController.getCourseTimetable);
  *                 - type: object
  *                   properties: { data: { $ref: '#/components/schemas/TimetableSlot' } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       400: { $ref: '#/components/responses/BadRequest' }
  */
 router.post(
   "/",
-  requireBotApiKey,
+  resolveStudentContext,
+  requireAmbassador,
   validate({ body: createSlotSchema }),
   timetableController.createSlot,
 );
@@ -106,8 +111,8 @@ router.post(
  * /timetable/{id}:
  *   patch:
  *     tags: [Timetable]
- *     summary: Update a timetable slot (trusted service)
- *     security: [{ botServiceKey: [] }]
+ *     summary: Update a timetable slot (HOC Hub, ambassadors only)
+ *     security: [{ studentSession: [] }, { botServiceKey: [] }]
  *     parameters:
  *       - { name: id, in: path, required: true, schema: { type: string } }
  *     responses:
@@ -121,11 +126,13 @@ router.post(
  *                 - type: object
  *                   properties: { data: { $ref: '#/components/schemas/TimetableSlot' } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
 router.patch(
   "/:id",
-  requireBotApiKey,
+  resolveStudentContext,
+  requireAmbassador,
   validate({ body: updateSlotSchema }),
   timetableController.updateSlot,
 );
@@ -135,15 +142,21 @@ router.patch(
  * /timetable/{id}:
  *   delete:
  *     tags: [Timetable]
- *     summary: Delete a timetable slot (trusted service)
- *     security: [{ botServiceKey: [] }]
+ *     summary: Delete a timetable slot (HOC Hub, ambassadors only)
+ *     security: [{ studentSession: [] }, { botServiceKey: [] }]
  *     parameters:
  *       - { name: id, in: path, required: true, schema: { type: string } }
  *     responses:
  *       200: { description: Slot deleted, content: { application/json: { schema: { $ref: '#/components/schemas/SuccessMessage' } } } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-router.delete("/:id", requireBotApiKey, timetableController.deleteSlot);
+router.delete(
+  "/:id",
+  resolveStudentContext,
+  requireAmbassador,
+  timetableController.deleteSlot,
+);
 
 export default router;
