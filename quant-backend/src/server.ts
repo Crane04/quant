@@ -6,6 +6,7 @@ import { ensureDefaultAdmin } from "./services/adminAuthService";
 import { ensureDefaultBadges } from "./services/badgeService";
 import { ensureDefaultRewards } from "./services/rewardService";
 import { startAssignmentReminderScheduler } from "./services/reminderService";
+import { startAnnouncementDeliveryScheduler } from "./services/announcementDeliveryService";
 
 async function main() {
   await connectDB();
@@ -13,6 +14,7 @@ async function main() {
   await ensureDefaultBadges();
   await ensureDefaultRewards();
   startAssignmentReminderScheduler();
+  startAnnouncementDeliveryScheduler();
 
   const app = createApp();
 
