@@ -16,14 +16,22 @@ export function metaPhoneToE164(metaPhone: string): string {
  * Skips verification (with a warning) if META_WA_APP_SECRET isn't set, so
  * local development doesn't require a full Meta app to be configured.
  */
-export function verifyWebhookSignature(rawBody: Buffer, signatureHeader: string | undefined): boolean {
+export function verifyWebhookSignature(
+  rawBody: Buffer,
+  signatureHeader: string | undefined,
+): boolean {
   if (!env.META_WA_APP_SECRET) {
-    logger.warn("META_WA_APP_SECRET not configured — skipping webhook signature verification");
+    logger.warn(
+      "META_WA_APP_SECRET not configured — skipping webhook signature verification",
+    );
     return true;
   }
   if (!signatureHeader?.startsWith("sha256=")) return false;
 
-  const expected = crypto.createHmac("sha256", env.META_WA_APP_SECRET).update(rawBody).digest("hex");
+  const expected = crypto
+    .createHmac("sha256", env.META_WA_APP_SECRET)
+    .update(rawBody)
+    .digest("hex");
   const provided = signatureHeader.slice("sha256=".length);
 
   const expectedBuf = Buffer.from(expected, "hex");
@@ -42,9 +50,14 @@ export function verifyWebhookSignature(rawBody: Buffer, signatureHeader: string 
  * template message instead of free-form text — swap this out for
  * sendWhatsAppTemplate() if you hit that in production.
  */
-export async function sendWhatsAppText(to: string, body: string): Promise<void> {
+export async function sendWhatsAppText(
+  to: string,
+  body: string,
+): Promise<void> {
   if (!env.META_WA_PHONE_NUMBER_ID || !env.META_WA_ACCESS_TOKEN) {
-    logger.warn("META_WA credentials not configured — skipping WhatsApp send", { to });
+    logger.warn("META_WA credentials not configured — skipping WhatsApp send", {
+      to,
+    });
     return;
   }
 
@@ -77,9 +90,17 @@ export async function sendWhatsAppText(to: string, body: string): Promise<void> 
  * from the given public URL, so this works directly off our R2 fileUrl with no
  * separate upload-to-Meta step.
  */
-export async function sendWhatsAppDocument(to: string, fileUrl: string, filename: string, caption?: string): Promise<void> {
+export async function sendWhatsAppDocument(
+  to: string,
+  fileUrl: string,
+  filename: string,
+  caption?: string,
+): Promise<void> {
   if (!env.META_WA_PHONE_NUMBER_ID || !env.META_WA_ACCESS_TOKEN) {
-    logger.warn("META_WA credentials not configured — skipping WhatsApp document send", { to });
+    logger.warn(
+      "META_WA credentials not configured — skipping WhatsApp document send",
+      { to },
+    );
     return;
   }
 
@@ -101,7 +122,10 @@ export async function sendWhatsAppDocument(to: string, fileUrl: string, filename
 
   if (!res.ok) {
     const errBody = await res.text();
-    logger.error("WhatsApp document send failed", { status: res.status, body: errBody });
+    logger.error("WhatsApp document send failed", {
+      status: res.status,
+      body: errBody,
+    });
     throw new Error(`Failed to send WhatsApp document: ${res.status}`);
   }
 }
@@ -112,7 +136,12 @@ export async function sendWhatsAppDocument(to: string, fileUrl: string, filename
  */
 export async function sendWhatsAppFlow(
   to: string,
-  options: { headerText: string; bodyText: string; ctaText: string; firstScreen: string }
+  options: {
+    headerText: string;
+    bodyText: string;
+    ctaText: string;
+    firstScreen: string;
+  },
 ): Promise<void> {
   // Unlike sendWhatsAppText/sendWhatsAppDocument, this must throw (not silently no-op)
   // on missing config — the caller's try/catch is how it decides to fall back to the
@@ -160,7 +189,10 @@ export async function sendWhatsAppFlow(
 
   if (!res.ok) {
     const errBody = await res.text();
-    logger.error("WhatsApp flow send failed", { status: res.status, body: errBody });
+    logger.error("WhatsApp flow send failed", {
+      status: res.status,
+      body: errBody,
+    });
     throw new Error(`Failed to send WhatsApp flow: ${res.status}`);
   }
 }
@@ -172,7 +204,7 @@ export async function sendWhatsAppFlow(
  */
 export async function sendWhatsAppCtaUrl(
   to: string,
-  options: { bodyText: string; buttonText: string; url: string }
+  options: { bodyText: string; buttonText: string; url: string },
 ): Promise<void> {
   if (!env.META_WA_PHONE_NUMBER_ID || !env.META_WA_ACCESS_TOKEN) {
     throw new Error("META_WA credentials not configured");
@@ -203,7 +235,10 @@ export async function sendWhatsAppCtaUrl(
 
   if (!res.ok) {
     const errBody = await res.text();
-    logger.error("WhatsApp CTA URL send failed", { status: res.status, body: errBody });
+    logger.error("WhatsApp CTA URL send failed", {
+      status: res.status,
+      body: errBody,
+    });
     throw new Error(`Failed to send WhatsApp CTA URL: ${res.status}`);
   }
 }

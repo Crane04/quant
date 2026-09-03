@@ -26,7 +26,7 @@ export function createApp() {
       verify: (req, _res, buf) => {
         (req as Request).rawBody = buf;
       },
-    })
+    }),
   );
   app.use(express.urlencoded({ extended: true }));
 
@@ -40,11 +40,15 @@ export function createApp() {
       limit: 300,
       standardHeaders: true,
       legacyHeaders: false,
-    })
+    }),
   );
 
   app.get("/health", (_req, res) => {
-    res.json({ success: true, status: "ok", timestamp: new Date().toISOString() });
+    res.json({
+      success: true,
+      status: "ok",
+      timestamp: new Date().toISOString(),
+    });
   });
 
   app.get("/api-docs.json", (_req, res) => res.json(swaggerSpec));
@@ -56,7 +60,7 @@ export function createApp() {
       next();
     },
     swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec)
+    swaggerUi.setup(swaggerSpec),
   );
 
   app.use("/api/v1", routes);
@@ -68,7 +72,7 @@ export function createApp() {
       res.removeHeader("Content-Security-Policy");
       next();
     },
-    viewRoutes
+    viewRoutes,
   );
   app.use(
     "/register",
@@ -77,7 +81,7 @@ export function createApp() {
       res.removeHeader("Content-Security-Policy");
       next();
     },
-    registerRoutes
+    registerRoutes,
   );
 
   app.use(notFoundHandler);

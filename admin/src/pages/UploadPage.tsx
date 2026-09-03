@@ -2,7 +2,15 @@ import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Upload, FileText, X, CheckCircle2, Loader2, Search, PlusCircle } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  X,
+  CheckCircle2,
+  Loader2,
+  Search,
+  PlusCircle,
+} from "lucide-react";
 import { fetchCourses, uploadDocument } from "../services/api";
 import { CourseRef, DocumentCategory, UploadPayload } from "../types";
 
@@ -15,7 +23,11 @@ const CATEGORIES: { value: DocumentCategory; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
-const initialDocForm = { title: "", tags: "", category: "lecture_note" as DocumentCategory };
+const initialDocForm = {
+  title: "",
+  tags: "",
+  category: "lecture_note" as DocumentCategory,
+};
 
 const initialNewCourseForm = {
   courseCode: "",
@@ -60,7 +72,9 @@ export default function UploadPage() {
     maxSize: 50 * 1024 * 1024,
   });
 
-  const handleNewCourseChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleNewCourseChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     setNewCourseForm((f) => ({ ...f, [e.target.name]: e.target.value }));
   };
 
@@ -79,7 +93,8 @@ export default function UploadPage() {
     let payload: UploadPayload;
 
     if (mode === "existing") {
-      if (!selectedCourse) return toast.error("Select a course, or switch to \"New course\"");
+      if (!selectedCourse)
+        return toast.error('Select a course, or switch to "New course"');
       payload = {
         title: docForm.title,
         category: docForm.category,
@@ -149,8 +164,8 @@ export default function UploadPage() {
             isDragActive
               ? "border-brand-500 bg-brand-500/5"
               : file
-              ? "border-zinc-700 bg-zinc-900"
-              : "border-zinc-700 hover:border-zinc-600 bg-zinc-900"
+                ? "border-zinc-700 bg-zinc-900"
+                : "border-zinc-700 hover:border-zinc-600 bg-zinc-900"
           }`}
         >
           <input {...getInputProps()} />
@@ -162,7 +177,9 @@ export default function UploadPage() {
                   <FileText size={20} className="text-red-400" />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-medium text-zinc-100">{file.name}</p>
+                  <p className="text-sm font-medium text-zinc-100">
+                    {file.name}
+                  </p>
                   <p className="text-xs text-zinc-500">{fileSizeMB} MB</p>
                 </div>
               </div>
@@ -180,7 +197,9 @@ export default function UploadPage() {
             <div>
               <Upload size={32} className="mx-auto text-zinc-600 mb-3" />
               <p className="text-sm text-zinc-400">
-                {isDragActive ? "Drop the PDF here" : "Drag & drop a PDF, or click to browse"}
+                {isDragActive
+                  ? "Drop the PDF here"
+                  : "Drag & drop a PDF, or click to browse"}
               </p>
               <p className="text-xs text-zinc-600 mt-1">Max 50 MB</p>
             </div>
@@ -189,13 +208,17 @@ export default function UploadPage() {
 
         {/* Document details */}
         <div className="card p-6 space-y-4">
-          <h2 className="text-sm font-medium text-zinc-300">Document Details</h2>
+          <h2 className="text-sm font-medium text-zinc-300">
+            Document Details
+          </h2>
 
           <div>
             <label className="label">Title *</label>
             <input
               value={docForm.title}
-              onChange={(e) => setDocForm((f) => ({ ...f, title: e.target.value }))}
+              onChange={(e) =>
+                setDocForm((f) => ({ ...f, title: e.target.value }))
+              }
               placeholder="e.g. Fluid Mechanics Week 3 Lecture Notes"
               className="input"
             />
@@ -206,7 +229,10 @@ export default function UploadPage() {
             <select
               value={docForm.category}
               onChange={(e) =>
-                setDocForm((f) => ({ ...f, category: e.target.value as DocumentCategory }))
+                setDocForm((f) => ({
+                  ...f,
+                  category: e.target.value as DocumentCategory,
+                }))
               }
               className="select"
             >
@@ -222,7 +248,9 @@ export default function UploadPage() {
             <label className="label">Tags</label>
             <input
               value={docForm.tags}
-              onChange={(e) => setDocForm((f) => ({ ...f, tags: e.target.value }))}
+              onChange={(e) =>
+                setDocForm((f) => ({ ...f, tags: e.target.value }))
+              }
               placeholder="week1, lecture, thermodynamics"
               className="input"
             />
@@ -239,7 +267,9 @@ export default function UploadPage() {
                 type="button"
                 onClick={() => setMode("existing")}
                 className={`px-2.5 py-1 rounded-lg transition ${
-                  mode === "existing" ? "bg-brand-500/15 text-brand-400" : "text-zinc-500 hover:text-zinc-300"
+                  mode === "existing"
+                    ? "bg-brand-500/15 text-brand-400"
+                    : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 Existing course
@@ -248,7 +278,9 @@ export default function UploadPage() {
                 type="button"
                 onClick={() => setMode("new")}
                 className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1 ${
-                  mode === "new" ? "bg-brand-500/15 text-brand-400" : "text-zinc-500 hover:text-zinc-300"
+                  mode === "new"
+                    ? "bg-brand-500/15 text-brand-400"
+                    : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 <PlusCircle size={13} /> New course
@@ -260,9 +292,16 @@ export default function UploadPage() {
             <div>
               <label className="label">Search by code or title *</label>
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <Search
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+                />
                 <input
-                  value={selectedCourse ? `${selectedCourse.code} — ${selectedCourse.title}` : courseSearch}
+                  value={
+                    selectedCourse
+                      ? `${selectedCourse.code} — ${selectedCourse.title}`
+                      : courseSearch
+                  }
                   onChange={(e) => {
                     setSelectedCourse(null);
                     setCourseSearch(e.target.value);
@@ -271,7 +310,10 @@ export default function UploadPage() {
                   className="input pl-9"
                 />
                 {searchingCourses && (
-                  <Loader2 size={15} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <Loader2
+                    size={15}
+                    className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500"
+                  />
                 )}
               </div>
 
@@ -291,8 +333,8 @@ export default function UploadPage() {
                         {course.code} — {course.title}
                       </p>
                       <p className="text-xs text-zinc-500">
-                        {course.university} · {course.department} · {course.level}L · {course.session} ·{" "}
-                        {course.semester}
+                        {course.university} · {course.department} ·{" "}
+                        {course.level}L · {course.session} · {course.semester}
                       </p>
                     </button>
                   ))}
@@ -347,17 +389,29 @@ export default function UploadPage() {
 
               <div>
                 <label className="label">Level *</label>
-                <select name="level" value={newCourseForm.level} onChange={handleNewCourseChange} className="select">
+                <select
+                  name="level"
+                  value={newCourseForm.level}
+                  onChange={handleNewCourseChange}
+                  className="select"
+                >
                   <option value="">Select level</option>
                   {LEVELS.map((l) => (
-                    <option key={l} value={l}>{l} Level</option>
+                    <option key={l} value={l}>
+                      {l} Level
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="label">Semester *</label>
-                <select name="semester" value={newCourseForm.semester} onChange={handleNewCourseChange} className="select">
+                <select
+                  name="semester"
+                  value={newCourseForm.semester}
+                  onChange={handleNewCourseChange}
+                  className="select"
+                >
                   <option value="">Select semester</option>
                   <option value="first">First Semester</option>
                   <option value="second">Second Semester</option>
@@ -393,7 +447,11 @@ export default function UploadPage() {
 
         {/* Submit */}
         <div className="flex items-center gap-4">
-          <button onClick={handleSubmit} disabled={loading || !file} className="btn-primary">
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !file}
+            className="btn-primary"
+          >
             {loading ? (
               <>
                 <Loader2 size={16} className="animate-spin" />

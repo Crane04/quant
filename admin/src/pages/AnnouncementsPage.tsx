@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Bell, CalendarClock, Loader2, Megaphone, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import {
+  Bell,
+  CalendarClock,
+  Loader2,
+  Megaphone,
+  ShieldCheck,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import { deleteAnnouncement, fetchAnnouncements } from "../services/api";
 import { Announcement } from "../types";
 
@@ -22,8 +30,13 @@ const formatDate = (value?: string | null) => {
 };
 
 const creatorName = (announcement: Announcement) => {
-  if (!announcement.createdBy || typeof announcement.createdBy === "string") return announcement.createdByType;
-  return announcement.createdBy.fullName || announcement.createdBy.email || announcement.createdByType;
+  if (!announcement.createdBy || typeof announcement.createdBy === "string")
+    return announcement.createdByType;
+  return (
+    announcement.createdBy.fullName ||
+    announcement.createdBy.email ||
+    announcement.createdByType
+  );
 };
 
 export default function AnnouncementsPage() {
@@ -58,7 +71,8 @@ export default function AnnouncementsPage() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-zinc-100">Announcements</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          {announcements.length} post{announcements.length !== 1 ? "s" : ""} from ambassadors, across every class
+          {announcements.length} post{announcements.length !== 1 ? "s" : ""}{" "}
+          from ambassadors, across every class
         </p>
       </div>
 
@@ -114,7 +128,9 @@ export default function AnnouncementsPage() {
                   <p className="text-sm font-medium text-zinc-100">{a.title}</p>
                   <span
                     className={`text-xs rounded px-2 py-0.5 flex-shrink-0 ${
-                      a.sentAt ? "bg-green-500/10 text-green-400" : "bg-amber-500/10 text-amber-400"
+                      a.sentAt
+                        ? "bg-green-500/10 text-green-400"
+                        : "bg-amber-500/10 text-amber-400"
                     }`}
                   >
                     {a.sentAt ? "Sent" : "Pending send"}
@@ -122,14 +138,17 @@ export default function AnnouncementsPage() {
                 </div>
                 <p className="text-sm text-zinc-400 mt-1">{a.message}</p>
                 {a.course && (
-                  <p className="text-xs font-mono text-zinc-500 mt-1">{a.course.code}</p>
+                  <p className="text-xs font-mono text-zinc-500 mt-1">
+                    {a.course.code}
+                  </p>
                 )}
                 <div className="flex items-center gap-3 mt-2 text-xs text-zinc-500">
                   <span className="flex items-center gap-1">
                     <ShieldCheck size={12} /> {creatorName(a)}
                   </span>
                   <span className="flex items-center gap-1">
-                    <UserRound size={12} /> {a.university} · {a.department} · {a.level}L
+                    <UserRound size={12} /> {a.university} · {a.department} ·{" "}
+                    {a.level}L
                   </span>
                   <span className="flex items-center gap-1">
                     <CalendarClock size={12} /> {formatDate(a.createdAt)}

@@ -4,9 +4,16 @@ import { logger } from "../utils/logger";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
-export async function sendMail(to: string, subject: string, text: string): Promise<void> {
+export async function sendMail(
+  to: string,
+  subject: string,
+  text: string,
+): Promise<void> {
   if (!resend) {
-    logger.warn("RESEND_API_KEY not configured — skipping email send", { to, subject });
+    logger.warn("RESEND_API_KEY not configured — skipping email send", {
+      to,
+      subject,
+    });
     return;
   }
 

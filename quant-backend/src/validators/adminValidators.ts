@@ -19,4 +19,6 @@ export const updateAdminSchema = z
     isActive: z.boolean().optional(),
     password: z.string().min(6).optional(),
   })
-  .refine((data) => Object.keys(data).length > 0, { message: "No updates provided" });
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "No updates provided",
+  });

@@ -13,8 +13,16 @@ export const CATEGORY_POINT_RATES: Record<string, number> = {
 };
 
 function isConsecutiveDay(prev: Date, next: Date): boolean {
-  const prevDay = Date.UTC(prev.getUTCFullYear(), prev.getUTCMonth(), prev.getUTCDate());
-  const nextDay = Date.UTC(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate());
+  const prevDay = Date.UTC(
+    prev.getUTCFullYear(),
+    prev.getUTCMonth(),
+    prev.getUTCDate(),
+  );
+  const nextDay = Date.UTC(
+    next.getUTCFullYear(),
+    next.getUTCMonth(),
+    next.getUTCDate(),
+  );
   return nextDay - prevDay === 24 * 60 * 60 * 1000;
 }
 
@@ -33,9 +41,10 @@ function isSameDay(a: Date, b: Date): boolean {
  */
 export async function awardPointsForApprovedDocument(
   student: HydratedDocument<StudentDoc>,
-  doc: DocumentFileDoc
+  doc: DocumentFileDoc,
 ): Promise<{ amount: number; student: HydratedDocument<StudentDoc> }> {
-  const amount = CATEGORY_POINT_RATES[doc.category] ?? CATEGORY_POINT_RATES.other;
+  const amount =
+    CATEGORY_POINT_RATES[doc.category] ?? CATEGORY_POINT_RATES.other;
   const now = new Date();
 
   student.points += amount;
@@ -71,7 +80,7 @@ export async function awardBonusPoints(
   studentId: string,
   amount: number,
   description: string,
-  ref?: { refType: "Badge"; refId: unknown }
+  ref?: { refType: "Badge"; refId: unknown },
 ): Promise<void> {
   const student = await Student.findById(studentId);
   if (!student) return;

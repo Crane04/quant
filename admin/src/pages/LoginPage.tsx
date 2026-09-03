@@ -34,7 +34,9 @@ export default function LoginPage() {
             <LockKeyhole size={20} className="text-white" />
           </div>
           <h1 className="text-xl font-semibold text-zinc-100">Quant Admin</h1>
-          <p className="text-sm text-zinc-500 mt-1">Sign in to manage materials</p>
+          <p className="text-sm text-zinc-500 mt-1">
+            Sign in to manage materials
+          </p>
         </div>
 
         <div className="card p-5 space-y-4">
@@ -62,8 +64,16 @@ export default function LoginPage() {
             />
           </div>
 
-          <button type="submit" disabled={loading} className="btn-primary w-full justify-center">
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <LockKeyhole size={16} />}
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary w-full justify-center"
+          >
+            {loading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <LockKeyhole size={16} />
+            )}
             Sign in
           </button>
         </div>

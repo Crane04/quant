@@ -9,7 +9,12 @@ function log(level: Level, message: string, meta?: unknown) {
     ...(meta !== undefined ? { meta } : {}),
   };
   // eslint-disable-next-line no-console
-  const fn = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
+  const fn =
+    level === "error"
+      ? console.error
+      : level === "warn"
+        ? console.warn
+        : console.log;
   fn(JSON.stringify(entry));
 }
 

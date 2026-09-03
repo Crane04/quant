@@ -57,7 +57,7 @@ router.post(
   "/register",
   detectBotApiKey,
   validate({ body: registerSchema }),
-  authController.register
+  authController.register,
 );
 
 /**
@@ -88,7 +88,11 @@ router.post(
  *                   properties: { data: { $ref: '#/components/schemas/Student' } }
  *       400: { $ref: '#/components/responses/BadRequest' }
  */
-router.post("/verify-phone", validate({ body: verifyPhoneSchema }), authController.verifyPhone);
+router.post(
+  "/verify-phone",
+  validate({ body: verifyPhoneSchema }),
+  authController.verifyPhone,
+);
 
 /**
  * @openapi
@@ -118,7 +122,11 @@ router.post("/verify-phone", validate({ body: verifyPhoneSchema }), authControll
  *                   properties: { data: { $ref: '#/components/schemas/Student' } }
  *       400: { $ref: '#/components/responses/BadRequest' }
  */
-router.post("/verify-email", validate({ body: verifyEmailSchema }), authController.verifyEmail);
+router.post(
+  "/verify-email",
+  validate({ body: verifyEmailSchema }),
+  authController.verifyEmail,
+);
 
 /**
  * @openapi
@@ -158,7 +166,11 @@ router.post("/verify-email", validate({ body: verifyEmailSchema }), authControll
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       400: { $ref: '#/components/responses/BadRequest' }
  */
-router.post("/student-login", validate({ body: loginSchema }), authController.login);
+router.post(
+  "/student-login",
+  validate({ body: loginSchema }),
+  authController.login,
+);
 
 /**
  * @openapi

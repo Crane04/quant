@@ -63,7 +63,12 @@ router.get("/me", resolveStudentContext, studentController.getMe);
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-router.patch("/me", resolveStudentContext, validate({ body: updateMeSchema }), studentController.updateMe);
+router.patch(
+  "/me",
+  resolveStudentContext,
+  validate({ body: updateMeSchema }),
+  studentController.updateMe,
+);
 
 /**
  * @openapi
@@ -89,7 +94,12 @@ router.patch("/me", resolveStudentContext, validate({ body: updateMeSchema }), s
  *                   properties: { data: { type: array, items: { $ref: '#/components/schemas/Student' } } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
-router.get("/", requireAdminAuth, validate({ query: listStudentsQuerySchema }), studentController.listStudents);
+router.get(
+  "/",
+  requireAdminAuth,
+  validate({ query: listStudentsQuerySchema }),
+  studentController.listStudents,
+);
 
 /**
  * @openapi
@@ -153,7 +163,7 @@ router.patch(
   "/:id",
   requireAdminAuth,
   validate({ body: adminUpdateStudentSchema }),
-  studentController.updateStudentById
+  studentController.updateStudentById,
 );
 
 /**

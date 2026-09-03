@@ -18,18 +18,30 @@ const documentFileSchema = new Schema(
       required: true,
     },
 
-    uploadedByType: { type: String, enum: ["Admin", "Student"], required: true },
-    uploadedBy: { type: Schema.Types.ObjectId, required: true, refPath: "uploadedByType" },
+    uploadedByType: {
+      type: String,
+      enum: ["Admin", "Student"],
+      required: true,
+    },
+    uploadedBy: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      refPath: "uploadedByType",
+    },
 
     // Admin uploads are auto-approved (no self-review needed); student uploads start
     // "pending" and only earn points once an admin approves them.
-    status: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
     pointsAwarded: { type: Number, default: 0 },
     reviewedBy: { type: Schema.Types.ObjectId, ref: "Admin" },
     reviewedAt: { type: Date },
     rejectionReason: { type: String, trim: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 documentFileSchema.index({ course: 1, createdAt: -1 });
@@ -37,5 +49,7 @@ documentFileSchema.index({ title: "text", tags: "text" });
 documentFileSchema.index({ status: 1, createdAt: -1 });
 documentFileSchema.index({ uploadedByType: 1, uploadedBy: 1, status: 1 });
 
-export type DocumentFileDoc = InferSchemaType<typeof documentFileSchema> & { _id: Types.ObjectId };
+export type DocumentFileDoc = InferSchemaType<typeof documentFileSchema> & {
+  _id: Types.ObjectId;
+};
 export const DocumentFile = model("DocumentFile", documentFileSchema);

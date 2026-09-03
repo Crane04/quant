@@ -57,8 +57,10 @@ const studentSchema = new Schema(
     // logic on it yet — kept so real signup data isn't silently discarded.
     referredByCode: { type: String, trim: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-export type StudentDoc = InferSchemaType<typeof studentSchema> & { _id: Types.ObjectId };
+export type StudentDoc = InferSchemaType<typeof studentSchema> & {
+  _id: Types.ObjectId;
+};
 export const Student = model("Student", studentSchema);

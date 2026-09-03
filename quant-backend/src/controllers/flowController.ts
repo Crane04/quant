@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import { logger } from "../utils/logger";
 import { verifyWebhookSignature } from "../services/waService";
-import { decryptFlowRequest, encryptFlowResponse, DecryptedFlowRequest } from "../services/flowCryptoService";
+import {
+  decryptFlowRequest,
+  encryptFlowResponse,
+  DecryptedFlowRequest,
+} from "../services/flowCryptoService";
 
 /**
  * Our Flow doesn't use server-side navigation (every screen uses a client-side
@@ -17,13 +21,20 @@ function handleFlowAction(request: DecryptedFlowRequest): unknown {
       return { version: request.version, screen: "PERSONAL_INFO", data: {} };
     case "BACK":
     case "data_exchange":
-      return { version: request.version, screen: request.screen ?? "PERSONAL_INFO", data: request.data ?? {} };
+      return {
+        version: request.version,
+        screen: request.screen ?? "PERSONAL_INFO",
+        data: request.data ?? {},
+      };
     default:
       return { version: request.version, data: { acknowledged: true } };
   }
 }
 
-export async function handleFlowRequest(req: Request, res: Response): Promise<void> {
+export async function handleFlowRequest(
+  req: Request,
+  res: Response,
+): Promise<void> {
   const signature = req.headers["x-hub-signature-256"] as string | undefined;
   if (req.rawBody && !verifyWebhookSignature(req.rawBody, signature)) {
     logger.warn("Rejected Flow endpoint request with invalid signature");

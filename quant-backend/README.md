@@ -51,24 +51,24 @@ role. See the `TODO` comments in `src/routes/courseRoutes.ts` etc.
 
 ## Data model
 
-| Model | Purpose |
-|---|---|
-| `Student` | phone (WhatsApp identity), email+password, matric number, verification flags |
-| `Admin` | email+password dashboard admin, role (`super_admin`/`admin`) |
-| `Session` | opaque session token (hashed) for a Student or Admin; TTL-indexed, auto-expires |
-| `OtpVerification` | short-lived OTP codes (TTL-indexed, auto-expires) |
-| `Course` | catalogue entry: code, title, university, department, level, session, semester |
-| `StudentCourse` | enrollment — links a student to courses for a session/semester |
-| `TimetableSlot` | a course's weekly recurring slot (day, time, venue) |
-| `Assignment` | belongs to a course; has a due date |
-| `StudentAssignmentStatus` | per-student completion tracking for an assignment |
-| `LectureSummary` | text summary tied to a course |
-| `DocumentFile` | metadata + URL for a PDF/other file tied to a course; category + review status drive points |
-| `GradeRecord` | one course grade for a student in a session/semester; feeds CGPA |
-| `PointsTransaction` | ledger entry (earn/spend) behind a student's points balance |
-| `Badge` / `StudentBadge` | the fixed 12-badge catalog, and which ones a student has earned |
-| `Reward` / `RewardRedemption` | the fixed rewards catalog, and each student's redemption history |
-| `Announcement` | a lecture alert or general announcement posted by an ambassador (HOC Hub) |
+| Model                         | Purpose                                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------------- |
+| `Student`                     | phone (WhatsApp identity), email+password, matric number, verification flags                |
+| `Admin`                       | email+password dashboard admin, role (`super_admin`/`admin`)                                |
+| `Session`                     | opaque session token (hashed) for a Student or Admin; TTL-indexed, auto-expires             |
+| `OtpVerification`             | short-lived OTP codes (TTL-indexed, auto-expires)                                           |
+| `Course`                      | catalogue entry: code, title, university, department, level, session, semester              |
+| `StudentCourse`               | enrollment — links a student to courses for a session/semester                              |
+| `TimetableSlot`               | a course's weekly recurring slot (day, time, venue)                                         |
+| `Assignment`                  | belongs to a course; has a due date                                                         |
+| `StudentAssignmentStatus`     | per-student completion tracking for an assignment                                           |
+| `LectureSummary`              | text summary tied to a course                                                               |
+| `DocumentFile`                | metadata + URL for a PDF/other file tied to a course; category + review status drive points |
+| `GradeRecord`                 | one course grade for a student in a session/semester; feeds CGPA                            |
+| `PointsTransaction`           | ledger entry (earn/spend) behind a student's points balance                                 |
+| `Badge` / `StudentBadge`      | the fixed 12-badge catalog, and which ones a student has earned                             |
+| `Reward` / `RewardRedemption` | the fixed rewards catalog, and each student's redemption history                            |
+| `Announcement`                | a lecture alert or general announcement posted by an ambassador (HOC Hub)                   |
 
 ## Gamification (points, badges, rewards, leaderboard, HOC Hub)
 
@@ -86,7 +86,7 @@ uploads:
 3. Points feed the leaderboard (`GET /leaderboard`, ambassadors only) and can
    be spent via `POST /rewards/:id/redeem` — deducted only on success, never
    on a validation failure (insufficient points / missing size).
-4. `tokens` is a *separate* balance from `points` — some rewards convert
+4. `tokens` is a _separate_ balance from `points` — some rewards convert
    points into tokens, but tokens aren't currently spendable anywhere else in
    this API.
 

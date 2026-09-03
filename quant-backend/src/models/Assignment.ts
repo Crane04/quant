@@ -12,10 +12,12 @@ const assignmentSchema = new Schema(
     completedAt: { type: Date },
     reminderSentAt: { type: Date },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 assignmentSchema.index({ student: 1, dueDate: 1 });
 
-export type AssignmentDoc = InferSchemaType<typeof assignmentSchema> & { _id: Types.ObjectId };
+export type AssignmentDoc = InferSchemaType<typeof assignmentSchema> & {
+  _id: Types.ObjectId;
+};
 export const Assignment = model("Assignment", assignmentSchema);

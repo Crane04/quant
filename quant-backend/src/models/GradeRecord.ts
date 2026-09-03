@@ -19,7 +19,7 @@ const gradeRecordSchema = new Schema(
     grade: { type: String, enum: Object.keys(GRADE_POINTS), required: true },
     gradePoint: { type: Number }, // derived, set in pre-save hook
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 gradeRecordSchema.pre("save", function (next) {
@@ -27,8 +27,13 @@ gradeRecordSchema.pre("save", function (next) {
   next();
 });
 
-gradeRecordSchema.index({ student: 1, course: 1, session: 1, semester: 1 }, { unique: true });
+gradeRecordSchema.index(
+  { student: 1, course: 1, session: 1, semester: 1 },
+  { unique: true },
+);
 
 export { GRADE_POINTS };
-export type GradeRecordDoc = InferSchemaType<typeof gradeRecordSchema> & { _id: Types.ObjectId };
+export type GradeRecordDoc = InferSchemaType<typeof gradeRecordSchema> & {
+  _id: Types.ObjectId;
+};
 export const GradeRecord = model("GradeRecord", gradeRecordSchema);

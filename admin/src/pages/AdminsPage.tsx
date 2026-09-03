@@ -3,7 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Loader2, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { createAdmin, deleteAdmin, fetchAdmins, updateAdmin } from "../services/api";
+import {
+  createAdmin,
+  deleteAdmin,
+  fetchAdmins,
+  updateAdmin,
+} from "../services/api";
 import { AdminRole, AdminUser } from "../types";
 
 const initialForm = {
@@ -16,7 +21,9 @@ export default function AdminsPage() {
   const qc = useQueryClient();
   const { admin: currentAdmin } = useAuth();
   const [form, setForm] = useState(initialForm);
-  const [passwordReset, setPasswordReset] = useState<Record<string, string>>({});
+  const [passwordReset, setPasswordReset] = useState<Record<string, string>>(
+    {},
+  );
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -35,8 +42,13 @@ export default function AdminsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Parameters<typeof updateAdmin>[1] }) =>
-      updateAdmin(id, updates),
+    mutationFn: ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Parameters<typeof updateAdmin>[1];
+    }) => updateAdmin(id, updates),
     onSuccess: () => {
       toast.success("Admin updated");
       qc.invalidateQueries({ queryKey: ["admins"] });
@@ -75,7 +87,7 @@ export default function AdminsPage() {
         onSuccess: () => {
           setPasswordReset((current) => ({ ...current, [admin.id]: "" }));
         },
-      }
+      },
     );
   };
 
@@ -83,7 +95,9 @@ export default function AdminsPage() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-zinc-100">Admins</h1>
-        <p className="text-sm text-zinc-500 mt-1">Manage people who can access Quant Admin</p>
+        <p className="text-sm text-zinc-500 mt-1">
+          Manage people who can access Quant Admin
+        </p>
       </div>
 
       <form onSubmit={handleCreate} className="card p-5 mb-6">
@@ -93,7 +107,12 @@ export default function AdminsPage() {
             <input
               type="email"
               value={form.email}
-              onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  email: event.target.value,
+                }))
+              }
               className="input"
               placeholder="admin@example.com"
               required
@@ -105,7 +124,12 @@ export default function AdminsPage() {
             <input
               type="password"
               value={form.password}
-              onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  password: event.target.value,
+                }))
+              }
               className="input"
               required
             />
@@ -115,7 +139,12 @@ export default function AdminsPage() {
             <label className="label">Role</label>
             <select
               value={form.role}
-              onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as AdminRole }))}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  role: event.target.value as AdminRole,
+                }))
+              }
               className="select"
             >
               <option value="admin">Admin</option>
@@ -123,8 +152,16 @@ export default function AdminsPage() {
             </select>
           </div>
 
-          <button type="submit" disabled={createMutation.isPending} className="btn-primary h-10">
-            {createMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+          <button
+            type="submit"
+            disabled={createMutation.isPending}
+            className="btn-primary h-10"
+          >
+            {createMutation.isPending ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <UserPlus size={16} />
+            )}
             Add admin
           </button>
         </div>
@@ -139,10 +176,18 @@ export default function AdminsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-zinc-800">
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Admin</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Role</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Reset Password</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">
+                  Admin
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">
+                  Role
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">
+                  Status
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">
+                  Reset Password
+                </th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -151,15 +196,22 @@ export default function AdminsPage() {
                 const isSelf = admin.id === currentAdmin?.id;
 
                 return (
-                  <tr key={admin.id} className="hover:bg-zinc-800/30 transition-colors">
+                  <tr
+                    key={admin.id}
+                    className="hover:bg-zinc-800/30 transition-colors"
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center">
                           <ShieldCheck size={15} className="text-brand-400" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-zinc-100">{admin.email}</p>
-                          {isSelf && <p className="text-xs text-zinc-500">You</p>}
+                          <p className="text-sm font-medium text-zinc-100">
+                            {admin.email}
+                          </p>
+                          {isSelf && (
+                            <p className="text-xs text-zinc-500">You</p>
+                          )}
                         </div>
                       </div>
                     </td>

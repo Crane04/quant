@@ -32,9 +32,16 @@ import { Student, StudentUpdatePayload } from "../types";
 
 const LEVELS = ["", "100", "200", "300", "400", "500"];
 
-const editableFields = ["fullName", "university", "department", "level"] as const;
+const editableFields = [
+  "fullName",
+  "university",
+  "department",
+  "level",
+] as const;
 
-const getInitialForm = (student: Student): Record<(typeof editableFields)[number], string> => ({
+const getInitialForm = (
+  student: Student,
+): Record<(typeof editableFields)[number], string> => ({
   fullName: student.fullName || "",
   university: student.university || "",
   department: student.department || "",
@@ -50,14 +57,22 @@ const formatDate = (value?: string) => {
   }).format(new Date(value));
 };
 
-const buildUpdatePayload = (form: ReturnType<typeof getInitialForm>): StudentUpdatePayload => ({
+const buildUpdatePayload = (
+  form: ReturnType<typeof getInitialForm>,
+): StudentUpdatePayload => ({
   fullName: form.fullName.trim(),
   university: form.university.trim(),
   department: form.department.trim(),
   level: form.level,
 });
 
-function StudentDetailModal({ student, onClose }: { student: Student; onClose: () => void }) {
+function StudentDetailModal({
+  student,
+  onClose,
+}: {
+  student: Student;
+  onClose: () => void;
+}) {
   const { data: points, isLoading: loadingPoints } = useQuery({
     queryKey: ["points", student.id],
     queryFn: () => fetchStudentPoints(student.id),
@@ -77,14 +92,19 @@ function StudentDetailModal({ student, onClose }: { student: Student; onClose: (
   const lockedBadges = (badges || []).filter((b) => !b.earned);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
       <div
         className="card w-full max-w-2xl max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 sticky top-0 bg-zinc-900">
           <div>
-            <h2 className="text-base font-semibold text-zinc-100">{student.fullName}</h2>
+            <h2 className="text-base font-semibold text-zinc-100">
+              {student.fullName}
+            </h2>
             <p className="text-xs text-zinc-500">{student.email}</p>
           </div>
           <button onClick={onClose} className="btn-ghost p-2">
@@ -95,25 +115,35 @@ function StudentDetailModal({ student, onClose }: { student: Student; onClose: (
         <div className="p-6 space-y-6">
           {/* Points summary */}
           <div>
-            <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Points & Tokens</h3>
+            <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">
+              Points & Tokens
+            </h3>
             {loadingPoints ? (
               <Loader2 size={18} className="animate-spin text-zinc-600" />
             ) : points ? (
               <div className="grid grid-cols-4 gap-3">
                 <div className="rounded-lg border border-zinc-800 p-3">
-                  <p className="text-lg font-semibold text-zinc-100">{points.points}</p>
+                  <p className="text-lg font-semibold text-zinc-100">
+                    {points.points}
+                  </p>
                   <p className="text-xs text-zinc-500">Points</p>
                 </div>
                 <div className="rounded-lg border border-zinc-800 p-3">
-                  <p className="text-lg font-semibold text-zinc-100">{points.tokens}</p>
+                  <p className="text-lg font-semibold text-zinc-100">
+                    {points.tokens}
+                  </p>
                   <p className="text-xs text-zinc-500">Tokens</p>
                 </div>
                 <div className="rounded-lg border border-zinc-800 p-3">
-                  <p className="text-lg font-semibold text-zinc-100">{points.lifetimePointsEarned}</p>
+                  <p className="text-lg font-semibold text-zinc-100">
+                    {points.lifetimePointsEarned}
+                  </p>
                   <p className="text-xs text-zinc-500">Lifetime</p>
                 </div>
                 <div className="rounded-lg border border-zinc-800 p-3">
-                  <p className="text-lg font-semibold text-zinc-100">{points.uploadStreakDays}</p>
+                  <p className="text-lg font-semibold text-zinc-100">
+                    {points.uploadStreakDays}
+                  </p>
                   <p className="text-xs text-zinc-500">Streak (days)</p>
                 </div>
               </div>
@@ -124,7 +154,9 @@ function StudentDetailModal({ student, onClose }: { student: Student; onClose: (
 
           {/* Points history */}
           <div>
-            <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Recent Activity</h3>
+            <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">
+              Recent Activity
+            </h3>
             {loadingHistory ? (
               <Loader2 size={18} className="animate-spin text-zinc-600" />
             ) : !history || history.length === 0 ? (
@@ -137,10 +169,18 @@ function StudentDetailModal({ student, onClose }: { student: Student; onClose: (
                     className="flex items-center justify-between text-sm border-b border-zinc-800/50 pb-2 last:border-0"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-zinc-200 truncate">{entry.description}</p>
-                      <p className="text-xs text-zinc-600">{formatDate(entry.createdAt)}</p>
+                      <p className="text-zinc-200 truncate">
+                        {entry.description}
+                      </p>
+                      <p className="text-xs text-zinc-600">
+                        {formatDate(entry.createdAt)}
+                      </p>
                     </div>
-                    <span className={entry.amount >= 0 ? "text-green-400" : "text-red-400"}>
+                    <span
+                      className={
+                        entry.amount >= 0 ? "text-green-400" : "text-red-400"
+                      }
+                    >
                       {entry.amount >= 0 ? "+" : ""}
                       {entry.amount}
                     </span>
@@ -163,17 +203,26 @@ function StudentDetailModal({ student, onClose }: { student: Student; onClose: (
                   <div
                     key={badge.id}
                     className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
-                      badge.earned ? "border-brand-500/30 bg-brand-500/5" : "border-zinc-800 opacity-50"
+                      badge.earned
+                        ? "border-brand-500/30 bg-brand-500/5"
+                        : "border-zinc-800 opacity-50"
                     }`}
                   >
                     {badge.earned ? (
-                      <Trophy size={14} className="text-brand-400 flex-shrink-0" />
+                      <Trophy
+                        size={14}
+                        className="text-brand-400 flex-shrink-0"
+                      />
                     ) : (
                       <Lock size={14} className="text-zinc-600 flex-shrink-0" />
                     )}
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-zinc-200 truncate">{badge.name}</p>
-                      <p className="text-xs text-zinc-600 capitalize">{badge.tier}</p>
+                      <p className="text-xs font-medium text-zinc-200 truncate">
+                        {badge.name}
+                      </p>
+                      <p className="text-xs text-zinc-600 capitalize">
+                        {badge.tier}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -192,7 +241,9 @@ export default function StudentsPage() {
   const [levelFilter, setLevelFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<ReturnType<typeof getInitialForm> | null>(null);
+  const [form, setForm] = useState<ReturnType<typeof getInitialForm> | null>(
+    null,
+  );
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
 
@@ -207,8 +258,13 @@ export default function StudentsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: StudentUpdatePayload }) =>
-      updateStudent(id, updates),
+    mutationFn: ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: StudentUpdatePayload;
+    }) => updateStudent(id, updates),
     onSuccess: () => {
       toast.success("Student updated");
       setEditingId(null);
@@ -219,8 +275,13 @@ export default function StudentsPage() {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: StudentUpdatePayload }) =>
-      updateStudent(id, updates),
+    mutationFn: ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: StudentUpdatePayload;
+    }) => updateStudent(id, updates),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["students"] });
     },
@@ -259,11 +320,17 @@ export default function StudentsPage() {
       return;
     }
 
-    updateMutation.mutate({ id: student.id, updates: buildUpdatePayload(form) });
+    updateMutation.mutate({
+      id: student.id,
+      updates: buildUpdatePayload(form),
+    });
   };
 
   const toggleAmbassador = (student: Student) => {
-    toggleMutation.mutate({ id: student.id, updates: { isAmbassador: !student.isAmbassador } });
+    toggleMutation.mutate({
+      id: student.id,
+      updates: { isAmbassador: !student.isAmbassador },
+    });
   };
 
   const toggleVerifiedContributor = (student: Student) => {
@@ -284,7 +351,10 @@ export default function StudentsPage() {
 
       <div className="flex items-center gap-3 mb-6">
         <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <Search
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+          />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -327,12 +397,24 @@ export default function StudentsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-zinc-800">
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Student</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Academic Profile</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Verification</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Roles</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Points</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">Registered</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">
+                  Student
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">
+                  Academic Profile
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">
+                  Verification
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">
+                  Roles
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">
+                  Points
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase">
+                  Registered
+                </th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -344,12 +426,23 @@ export default function StudentsPage() {
                   return (
                     <tr key={student.id} className="bg-zinc-800/20">
                       <td colSpan={7} className="px-4 py-4">
-                        <form onSubmit={(event) => saveStudent(event, student)} className="grid grid-cols-6 gap-3 items-end">
+                        <form
+                          onSubmit={(event) => saveStudent(event, student)}
+                          className="grid grid-cols-6 gap-3 items-end"
+                        >
                           <div className="col-span-2">
                             <label className="label">Name</label>
                             <input
                               value={form.fullName}
-                              onChange={(event) => setForm((current) => current && { ...current, fullName: event.target.value })}
+                              onChange={(event) =>
+                                setForm(
+                                  (current) =>
+                                    current && {
+                                      ...current,
+                                      fullName: event.target.value,
+                                    },
+                                )
+                              }
                               className="input"
                               autoFocus
                             />
@@ -358,7 +451,15 @@ export default function StudentsPage() {
                             <label className="label">University</label>
                             <input
                               value={form.university}
-                              onChange={(event) => setForm((current) => current && { ...current, university: event.target.value })}
+                              onChange={(event) =>
+                                setForm(
+                                  (current) =>
+                                    current && {
+                                      ...current,
+                                      university: event.target.value,
+                                    },
+                                )
+                              }
                               className="input"
                             />
                           </div>
@@ -366,7 +467,15 @@ export default function StudentsPage() {
                             <label className="label">Department</label>
                             <input
                               value={form.department}
-                              onChange={(event) => setForm((current) => current && { ...current, department: event.target.value })}
+                              onChange={(event) =>
+                                setForm(
+                                  (current) =>
+                                    current && {
+                                      ...current,
+                                      department: event.target.value,
+                                    },
+                                )
+                              }
                               className="input"
                             />
                           </div>
@@ -374,7 +483,15 @@ export default function StudentsPage() {
                             <label className="label">Level</label>
                             <select
                               value={form.level}
-                              onChange={(event) => setForm((current) => current && { ...current, level: event.target.value })}
+                              onChange={(event) =>
+                                setForm(
+                                  (current) =>
+                                    current && {
+                                      ...current,
+                                      level: event.target.value,
+                                    },
+                                )
+                              }
                               className="select"
                             >
                               {LEVELS.map((level) => (
@@ -391,7 +508,11 @@ export default function StudentsPage() {
                               className="btn-primary h-10 px-3"
                               title="Save student"
                             >
-                              {updateMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                              {updateMutation.isPending ? (
+                                <Loader2 size={15} className="animate-spin" />
+                              ) : (
+                                <Save size={15} />
+                              )}
                             </button>
                             <button
                               type="button"
@@ -410,7 +531,10 @@ export default function StudentsPage() {
                 }
 
                 return (
-                  <tr key={student.id} className="hover:bg-zinc-800/30 transition-colors">
+                  <tr
+                    key={student.id}
+                    className="hover:bg-zinc-800/30 transition-colors"
+                  >
                     <td className="px-4 py-3">
                       <button
                         type="button"
@@ -425,7 +549,9 @@ export default function StudentsPage() {
                           <p className="text-sm font-medium text-zinc-100 truncate max-w-[180px] hover:underline">
                             {student.fullName}
                           </p>
-                          <p className="text-xs text-zinc-500 font-mono">{student.phone}</p>
+                          <p className="text-xs text-zinc-500 font-mono">
+                            {student.phone}
+                          </p>
                         </div>
                       </button>
                     </td>
@@ -433,22 +559,39 @@ export default function StudentsPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 text-sm text-zinc-300">
                         <GraduationCap size={14} className="text-zinc-500" />
-                        <span>{student.level ? `${student.level}L` : "Unset"}</span>
+                        <span>
+                          {student.level ? `${student.level}L` : "Unset"}
+                        </span>
                         <span className="text-zinc-600">/</span>
                         <span>{student.department || "No department"}</span>
                       </div>
                       <p className="text-xs text-zinc-500 mt-0.5">
-                        {student.university || "No university set"} · {student.matricNumber}
+                        {student.university || "No university set"} ·{" "}
+                        {student.matricNumber}
                       </p>
                     </td>
 
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3 text-xs">
-                        <span className={`flex items-center gap-1 ${student.isPhoneVerified ? "text-green-400" : "text-zinc-500"}`}>
-                          {student.isPhoneVerified ? <CheckCircle2 size={13} /> : <XCircle size={13} />} Phone
+                        <span
+                          className={`flex items-center gap-1 ${student.isPhoneVerified ? "text-green-400" : "text-zinc-500"}`}
+                        >
+                          {student.isPhoneVerified ? (
+                            <CheckCircle2 size={13} />
+                          ) : (
+                            <XCircle size={13} />
+                          )}{" "}
+                          Phone
                         </span>
-                        <span className={`flex items-center gap-1 ${student.isEmailVerified ? "text-green-400" : "text-zinc-500"}`}>
-                          {student.isEmailVerified ? <CheckCircle2 size={13} /> : <XCircle size={13} />} Email
+                        <span
+                          className={`flex items-center gap-1 ${student.isEmailVerified ? "text-green-400" : "text-zinc-500"}`}
+                        >
+                          {student.isEmailVerified ? (
+                            <CheckCircle2 size={13} />
+                          ) : (
+                            <XCircle size={13} />
+                          )}{" "}
+                          Email
                         </span>
                       </div>
                     </td>
@@ -558,7 +701,10 @@ export default function StudentsPage() {
       )}
 
       {detailStudent && (
-        <StudentDetailModal student={detailStudent} onClose={() => setDetailStudent(null)} />
+        <StudentDetailModal
+          student={detailStudent}
+          onClose={() => setDetailStudent(null)}
+        />
       )}
     </div>
   );

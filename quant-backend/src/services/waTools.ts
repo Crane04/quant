@@ -21,8 +21,15 @@ export const TOOL_DEFINITIONS = [
       parameters: {
         type: "object",
         properties: {
-          courseCode: { type: "string", description: "e.g. 'MEE 305' — normalize spacing/case" },
-          topic: { type: "string", description: "A keyword/topic to search by, if no course code was given" },
+          courseCode: {
+            type: "string",
+            description: "e.g. 'MEE 305' — normalize spacing/case",
+          },
+          topic: {
+            type: "string",
+            description:
+              "A keyword/topic to search by, if no course code was given",
+          },
         },
       },
     },
@@ -46,7 +53,8 @@ export const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "get_timetable",
-      description: "Get the student's weekly class timetable, based on their most recent course enrollment.",
+      description:
+        "Get the student's weekly class timetable, based on their most recent course enrollment.",
       parameters: { type: "object", properties: {} },
     },
   },
@@ -61,8 +69,14 @@ export const TOOL_DEFINITIONS = [
       parameters: {
         type: "object",
         properties: {
-          courseLabel: { type: "string", description: "Whatever they call the course, e.g. 'MEE 501'" },
-          title: { type: "string", description: "What the assignment is, e.g. 'Lab report submission'" },
+          courseLabel: {
+            type: "string",
+            description: "Whatever they call the course, e.g. 'MEE 501'",
+          },
+          title: {
+            type: "string",
+            description: "What the assignment is, e.g. 'Lab report submission'",
+          },
           dueDate: {
             type: "string",
             description:
@@ -78,7 +92,8 @@ export const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "get_assignments",
-      description: "Get the student's saved personal assignments, with due dates and completion status.",
+      description:
+        "Get the student's saved personal assignments, with due dates and completion status.",
       parameters: { type: "object", properties: {} },
     },
   },
@@ -86,7 +101,8 @@ export const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "mark_assignment_done",
-      description: "Mark one of the student's assignments as completed, by its id.",
+      description:
+        "Mark one of the student's assignments as completed, by its id.",
       parameters: {
         type: "object",
         properties: { assignmentId: { type: "string" } },
@@ -98,7 +114,8 @@ export const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "get_cgpa",
-      description: "Get the student's cumulative GPA and a per-semester breakdown, from their recorded grades.",
+      description:
+        "Get the student's cumulative GPA and a per-semester breakdown, from their recorded grades.",
       parameters: { type: "object", properties: {} },
     },
   },
@@ -106,7 +123,8 @@ export const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "get_profile",
-      description: "Get the student's own profile details (name, email, matric number, department, etc).",
+      description:
+        "Get the student's own profile details (name, email, matric number, department, etc).",
       parameters: { type: "object", properties: {} },
     },
   },
@@ -121,7 +139,11 @@ export const TOOL_DEFINITIONS = [
         type: "object",
         properties: {
           semester: { type: "string", enum: ["first", "second"] },
-          courseCodes: { type: "array", items: { type: "string" }, description: "e.g. ['MEE 305', 'GST 201']" },
+          courseCodes: {
+            type: "array",
+            items: { type: "string" },
+            description: "e.g. ['MEE 305', 'GST 201']",
+          },
         },
         required: ["semester", "courseCodes"],
       },
@@ -157,21 +179,30 @@ function getCurrentSession(date: Date = new Date()): string {
 }
 
 async function latestEnrollmentPeriod(
-  studentId: Types.ObjectId
+  studentId: Types.ObjectId,
 ): Promise<{ session: string; semester: "first" | "second" } | null> {
-  const latest = await StudentCourse.findOne({ student: studentId }).sort({ createdAt: -1 });
+  const latest = await StudentCourse.findOne({ student: studentId }).sort({
+    createdAt: -1,
+  });
   if (!latest) return null;
-  return { session: latest.session, semester: latest.semester as "first" | "second" };
+  return {
+    session: latest.session,
+    semester: latest.semester as "first" | "second",
+  };
 }
 
-export async function searchCourseMaterials(args: { courseCode?: string; topic?: string }) {
+export async function searchCourseMaterials(args: {
+  courseCode?: string;
+  topic?: string;
+}) {
   let courseIds: Types.ObjectId[] | undefined;
 
   if (args.courseCode) {
     const courses = await Course.find({
       code: new RegExp(args.courseCode.replace(/\s+/g, "\\s*"), "i"),
     });
-    if (courses.length === 0) return { found: false, message: "No matching course found." };
+    if (courses.length === 0)
+      return { found: false, message: "No matching course found." };
     courseIds = courses.map((c) => c._id);
   }
 
@@ -179,7 +210,10 @@ export async function searchCourseMaterials(args: { courseCode?: string; topic?:
   if (courseIds) filter.course = { $in: courseIds };
   if (args.topic) filter.$text = { $search: args.topic };
 
-  const docs = await DocumentFile.find(filter).populate("course").sort({ createdAt: -1 }).limit(10);
+  const docs = await DocumentFile.find(filter)
+    .populate("course")
+    .sort({ createdAt: -1 })
+    .limit(10);
 
   return {
     found: docs.length > 0,
@@ -195,15 +229,23 @@ export async function searchCourseMaterials(args: { courseCode?: string; topic?:
 }
 
 function sanitizeFilename(title: string, fileType: string): string {
-  const base = title.trim().replace(/[^a-zA-Z0-9 _-]/g, "").replace(/\s+/g, "_") || "document";
+  const base =
+    title
+      .trim()
+      .replace(/[^a-zA-Z0-9 _-]/g, "")
+      .replace(/\s+/g, "_") || "document";
   return `${base}.${fileType}`;
 }
 
 export async function getDocumentLink(args: { documentId: string }) {
   const doc = await DocumentFile.findById(args.documentId).populate("course");
-  if (!doc || doc.status !== "approved") return { found: false, message: "Document not found." };
+  if (!doc || doc.status !== "approved")
+    return { found: false, message: "Document not found." };
 
-  await DocumentFile.updateOne({ _id: doc._id }, { $inc: { downloadCount: 1 } });
+  await DocumentFile.updateOne(
+    { _id: doc._id },
+    { $inc: { downloadCount: 1 } },
+  );
 
   return {
     found: true,
@@ -216,7 +258,11 @@ export async function getDocumentLink(args: { documentId: string }) {
 
 export async function getTimetable(student: StudentDoc) {
   const period = await latestEnrollmentPeriod(student._id);
-  if (!period) return { enrolled: false, message: "Student isn't enrolled in any courses yet." };
+  if (!period)
+    return {
+      enrolled: false,
+      message: "Student isn't enrolled in any courses yet.",
+    };
 
   const enrollments = await StudentCourse.find({
     student: student._id,
@@ -225,7 +271,9 @@ export async function getTimetable(student: StudentDoc) {
   }).select("course");
   const courseIds = enrollments.map((e) => e.course);
 
-  const slots = await TimetableSlot.find({ course: { $in: courseIds } }).populate("course");
+  const slots = await TimetableSlot.find({
+    course: { $in: courseIds },
+  }).populate("course");
 
   return {
     enrolled: true,
@@ -243,10 +291,11 @@ export async function getTimetable(student: StudentDoc) {
 
 export async function saveAssignment(
   student: StudentDoc,
-  args: { courseLabel: string; title: string; dueDate: string }
+  args: { courseLabel: string; title: string; dueDate: string },
 ) {
   const dueDate = new Date(args.dueDate);
-  if (isNaN(dueDate.getTime())) return { success: false, message: "Couldn't parse that due date." };
+  if (isNaN(dueDate.getTime()))
+    return { success: false, message: "Couldn't parse that due date." };
 
   const assignment = await Assignment.create({
     student: student._id,
@@ -259,7 +308,9 @@ export async function saveAssignment(
 }
 
 export async function getAssignments(student: StudentDoc) {
-  const assignments = await Assignment.find({ student: student._id }).sort({ dueDate: 1 }).limit(20);
+  const assignments = await Assignment.find({ student: student._id })
+    .sort({ dueDate: 1 })
+    .limit(20);
 
   return {
     assignments: assignments.map((a) => ({
@@ -272,10 +323,13 @@ export async function getAssignments(student: StudentDoc) {
   };
 }
 
-export async function markAssignmentDone(student: StudentDoc, args: { assignmentId: string }) {
+export async function markAssignmentDone(
+  student: StudentDoc,
+  args: { assignmentId: string },
+) {
   const assignment = await Assignment.findOneAndUpdate(
     { _id: args.assignmentId, student: student._id },
-    { completed: true, completedAt: new Date() }
+    { completed: true, completedAt: new Date() },
   );
   if (!assignment) return { success: false, message: "Assignment not found." };
 
@@ -283,9 +337,14 @@ export async function markAssignmentDone(student: StudentDoc, args: { assignment
 }
 
 export async function getCgpa(student: StudentDoc) {
-  const records = await GradeRecord.find({ student: student._id }).populate("course");
+  const records = await GradeRecord.find({ student: student._id }).populate(
+    "course",
+  );
 
-  const bySemester = new Map<string, { totalPoints: number; totalUnits: number }>();
+  const bySemester = new Map<
+    string,
+    { totalPoints: number; totalUnits: number }
+  >();
   let cumulativePoints = 0;
   let cumulativeUnits = 0;
 
@@ -301,7 +360,9 @@ export async function getCgpa(student: StudentDoc) {
 
   return {
     hasGrades: records.length > 0,
-    cgpa: cumulativeUnits ? Number((cumulativePoints / cumulativeUnits).toFixed(2)) : 0,
+    cgpa: cumulativeUnits
+      ? Number((cumulativePoints / cumulativeUnits).toFixed(2))
+      : 0,
     totalCreditUnits: cumulativeUnits,
     semesterBreakdown: Array.from(bySemester.entries()).map(([key, v]) => ({
       session: key.split(" - ")[0],
@@ -327,13 +388,20 @@ export function getProfile(student: StudentDoc) {
 
 export async function enrollInCourses(
   student: StudentDoc,
-  args: { semester: "first" | "second"; courseCodes: string[] }
+  args: { semester: "first" | "second"; courseCodes: string[] },
 ) {
   const codes = args.courseCodes.map((c) => c.trim().toUpperCase());
-  const courses = await Course.find({ code: { $in: codes }, university: student.university });
+  const courses = await Course.find({
+    code: { $in: codes },
+    university: student.university,
+  });
 
   if (courses.length === 0) {
-    return { success: false, message: "None of those course codes were found for the student's university." };
+    return {
+      success: false,
+      message:
+        "None of those course codes were found for the student's university.",
+    };
   }
 
   const session = getCurrentSession();
@@ -352,7 +420,7 @@ export async function enrollInCourses(
         },
         upsert: true,
       },
-    }))
+    })),
   );
 
   const foundCodes = courses.map((c) => c.code);
@@ -363,22 +431,42 @@ export async function enrollInCourses(
 
 export async function recordGrade(
   student: StudentDoc,
-  args: { courseCode: string; semester: "first" | "second"; creditUnits: number; grade: string }
+  args: {
+    courseCode: string;
+    semester: "first" | "second";
+    creditUnits: number;
+    grade: string;
+  },
 ) {
   const course = await Course.findOne({
-    code: new RegExp(`^${args.courseCode.trim().replace(/\s+/g, "\\s*")}$`, "i"),
+    code: new RegExp(
+      `^${args.courseCode.trim().replace(/\s+/g, "\\s*")}$`,
+      "i",
+    ),
     university: student.university,
   });
-  if (!course) return { success: false, message: "That course wasn't found for the student's university." };
+  if (!course)
+    return {
+      success: false,
+      message: "That course wasn't found for the student's university.",
+    };
 
   if (!Object.keys(GRADE_POINTS).includes(args.grade.toUpperCase())) {
-    return { success: false, message: "Invalid grade letter — must be one of A, B, C, D, E, F." };
+    return {
+      success: false,
+      message: "Invalid grade letter — must be one of A, B, C, D, E, F.",
+    };
   }
 
   await GradeRecord.findOneAndUpdate(
-    { student: student._id, course: course._id, session: getCurrentSession(), semester: args.semester },
+    {
+      student: student._id,
+      course: course._id,
+      session: getCurrentSession(),
+      semester: args.semester,
+    },
     { creditUnits: args.creditUnits, grade: args.grade.toUpperCase() },
-    { upsert: true, runValidators: true, setDefaultsOnInsert: true }
+    { upsert: true, runValidators: true, setDefaultsOnInsert: true },
   );
 
   return { success: true };
@@ -387,17 +475,22 @@ export async function recordGrade(
 export async function executeTool(
   name: string,
   args: Record<string, unknown>,
-  student: StudentDoc
+  student: StudentDoc,
 ): Promise<unknown> {
   switch (name) {
     case "search_course_materials":
-      return searchCourseMaterials(args as { courseCode?: string; topic?: string });
+      return searchCourseMaterials(
+        args as { courseCode?: string; topic?: string },
+      );
     case "get_document_link":
       return getDocumentLink(args as { documentId: string });
     case "get_timetable":
       return getTimetable(student);
     case "save_assignment":
-      return saveAssignment(student, args as { courseLabel: string; title: string; dueDate: string });
+      return saveAssignment(
+        student,
+        args as { courseLabel: string; title: string; dueDate: string },
+      );
     case "get_assignments":
       return getAssignments(student);
     case "mark_assignment_done":
@@ -407,11 +500,19 @@ export async function executeTool(
     case "get_profile":
       return getProfile(student);
     case "enroll_in_courses":
-      return enrollInCourses(student, args as { semester: "first" | "second"; courseCodes: string[] });
+      return enrollInCourses(
+        student,
+        args as { semester: "first" | "second"; courseCodes: string[] },
+      );
     case "record_grade":
       return recordGrade(
         student,
-        args as { courseCode: string; semester: "first" | "second"; creditUnits: number; grade: string }
+        args as {
+          courseCode: string;
+          semester: "first" | "second";
+          creditUnits: number;
+          grade: string;
+        },
       );
     default:
       return { error: `Unknown tool: ${name}` };

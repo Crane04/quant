@@ -35,7 +35,7 @@ router.get(
   "/mine",
   resolveStudentContext,
   validate({ query: myAssignmentsQuerySchema }),
-  assignmentController.getMyAssignments
+  assignmentController.getMyAssignments,
 );
 
 /**
@@ -59,7 +59,11 @@ router.get(
  *                   properties: { data: { type: array, items: { $ref: '#/components/schemas/Assignment' } } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
-router.get("/upcoming-reminders", requireBotApiKey, assignmentController.getUpcomingForReminders);
+router.get(
+  "/upcoming-reminders",
+  requireBotApiKey,
+  assignmentController.getUpcomingForReminders,
+);
 
 /**
  * @openapi
@@ -75,7 +79,11 @@ router.get("/upcoming-reminders", requireBotApiKey, assignmentController.getUpco
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-router.delete("/:id", resolveStudentContext, assignmentController.deleteAssignment);
+router.delete(
+  "/:id",
+  resolveStudentContext,
+  assignmentController.deleteAssignment,
+);
 
 /**
  * @openapi
@@ -103,7 +111,7 @@ router.post(
   "/:id/status",
   resolveStudentContext,
   validate({ body: markStatusSchema }),
-  assignmentController.markAssignmentStatus
+  assignmentController.markAssignmentStatus,
 );
 
 export default router;

@@ -24,7 +24,7 @@ type GroqResponse = {
 /** One raw Groq chat-completion call. Returns null on any failure — callers fall back gracefully. */
 export async function completeChat(
   messages: ChatMessage[],
-  tools: readonly unknown[]
+  tools: readonly unknown[],
 ): Promise<ChatMessage | null> {
   if (!env.GROQ_API_KEY) {
     logger.warn("GROQ_API_KEY not configured — agent unavailable");
@@ -34,7 +34,10 @@ export async function completeChat(
   try {
     const res = await fetch(GROQ_CHAT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.GROQ_API_KEY}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${env.GROQ_API_KEY}`,
+      },
       body: JSON.stringify({
         model: env.GROQ_MODEL,
         temperature: 0.3,
@@ -45,20 +48,27 @@ export async function completeChat(
     });
 
     if (!res.ok) {
-      logger.error("Groq agent request failed", { status: res.status, body: await res.text() });
+      logger.error("Groq agent request failed", {
+        status: res.status,
+        body: await res.text(),
+      });
       return null;
     }
 
     const data = (await res.json()) as GroqResponse;
     return data.choices?.[0]?.message ?? null;
   } catch (err) {
-    logger.error("Groq agent request errored", { error: err instanceof Error ? err.message : "unknown" });
+    logger.error("Groq agent request errored", {
+      error: err instanceof Error ? err.message : "unknown",
+    });
     return null;
   }
 }
 
 /** One-shot structured extraction — no tools, forces a JSON object response. */
-export async function completeJson(messages: ChatMessage[]): Promise<Record<string, unknown> | null> {
+export async function completeJson(
+  messages: ChatMessage[],
+): Promise<Record<string, unknown> | null> {
   if (!env.GROQ_API_KEY) {
     logger.warn("GROQ_API_KEY not configured — extraction unavailable");
     return null;
@@ -67,7 +77,10 @@ export async function completeJson(messages: ChatMessage[]): Promise<Record<stri
   try {
     const res = await fetch(GROQ_CHAT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.GROQ_API_KEY}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${env.GROQ_API_KEY}`,
+      },
       body: JSON.stringify({
         model: env.GROQ_MODEL,
         temperature: 0,
@@ -77,7 +90,10 @@ export async function completeJson(messages: ChatMessage[]): Promise<Record<stri
     });
 
     if (!res.ok) {
-      logger.error("Groq extraction request failed", { status: res.status, body: await res.text() });
+      logger.error("Groq extraction request failed", {
+        status: res.status,
+        body: await res.text(),
+      });
       return null;
     }
 
@@ -92,7 +108,9 @@ export async function completeJson(messages: ChatMessage[]): Promise<Record<stri
       return null;
     }
   } catch (err) {
-    logger.error("Groq extraction request errored", { error: err instanceof Error ? err.message : "unknown" });
+    logger.error("Groq extraction request errored", {
+      error: err instanceof Error ? err.message : "unknown",
+    });
     return null;
   }
 }

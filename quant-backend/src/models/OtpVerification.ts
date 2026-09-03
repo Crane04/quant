@@ -14,7 +14,7 @@ const otpVerificationSchema = new Schema(
     consumedAt: { type: Date, default: null },
     attempts: { type: Number, default: 0 },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Auto-expire documents once their TTL passes so stale OTPs don't pile up

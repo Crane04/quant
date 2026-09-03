@@ -54,7 +54,11 @@ router.get("/mine", resolveStudentContext, controller.getMyPoints);
  *                   properties: { data: { type: array, items: { $ref: '#/components/schemas/PointsTransaction' } } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
-router.get("/mine/history", resolveStudentContext, controller.getMyPointsHistory);
+router.get(
+  "/mine/history",
+  resolveStudentContext,
+  controller.getMyPointsHistory,
+);
 
 /**
  * @openapi
@@ -109,6 +113,10 @@ router.get("/:studentId", requireAdminAuth, controller.getStudentPoints);
  *                   properties: { data: { type: array, items: { $ref: '#/components/schemas/PointsTransaction' } } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
-router.get("/:studentId/history", requireAdminAuth, controller.getStudentPointsHistory);
+router.get(
+  "/:studentId/history",
+  requireAdminAuth,
+  controller.getStudentPointsHistory,
+);
 
 export default router;

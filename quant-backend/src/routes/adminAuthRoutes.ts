@@ -39,7 +39,11 @@ const router = Router();
  *                         admin: { $ref: '#/components/schemas/Admin' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
-router.post("/login", validate({ body: adminLoginSchema }), adminAuthController.login);
+router.post(
+  "/login",
+  validate({ body: adminLoginSchema }),
+  adminAuthController.login,
+);
 
 /**
  * @openapi

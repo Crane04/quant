@@ -3,7 +3,12 @@ import { z } from "zod";
 export const createDocumentSchema = z
   .object({
     title: z.string().min(2).max(200),
-    category: z.enum(["lecture_note", "exam_summary", "past_question", "other"]),
+    category: z.enum([
+      "lecture_note",
+      "exam_summary",
+      "past_question",
+      "other",
+    ]),
     courseId: z.string().optional(),
     courseCode: z.string().min(1).optional(),
     courseTitle: z.string().min(1).optional(),
@@ -20,18 +25,18 @@ export const createDocumentSchema = z
       Boolean(data.courseId) ||
       Boolean(
         data.courseCode &&
-          data.courseTitle &&
-          data.university &&
-          data.department &&
-          data.level &&
-          data.session &&
-          data.semester &&
-          data.creditUnits !== undefined
+        data.courseTitle &&
+        data.university &&
+        data.department &&
+        data.level &&
+        data.session &&
+        data.semester &&
+        data.creditUnits !== undefined,
       ),
     {
       message:
         "Provide courseId, or courseCode/courseTitle/university/department/level/session/semester/creditUnits to create a new course",
-    }
+    },
   );
 
 export const updateDocumentSchema = z.object({

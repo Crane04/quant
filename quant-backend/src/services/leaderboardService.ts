@@ -9,15 +9,25 @@ export interface LeaderboardEntry {
   materialsUploaded: number;
 }
 
-async function materialsUploadedCounts(studentIds: unknown[]): Promise<Map<string, number>> {
+async function materialsUploadedCounts(
+  studentIds: unknown[],
+): Promise<Map<string, number>> {
   const counts = await DocumentFile.aggregate([
-    { $match: { uploadedByType: "Student", uploadedBy: { $in: studentIds }, status: "approved" } },
+    {
+      $match: {
+        uploadedByType: "Student",
+        uploadedBy: { $in: studentIds },
+        status: "approved",
+      },
+    },
     { $group: { _id: "$uploadedBy", total: { $sum: 1 } } },
   ]);
   return new Map(counts.map((c) => [c._id.toString(), c.total]));
 }
 
-export async function getTopContributors(limit: number): Promise<LeaderboardEntry[]> {
+export async function getTopContributors(
+  limit: number,
+): Promise<LeaderboardEntry[]> {
   const students = await Student.find({ isAmbassador: true })
     .sort({ points: -1 })
     .limit(limit)
@@ -34,10 +44,17 @@ export async function getTopContributors(limit: number): Promise<LeaderboardEntr
   }));
 }
 
-export async function getMyRank(studentId: string): Promise<{ rank: number; points: number } | null> {
-  const student = await Student.findById(studentId).select("points isAmbassador");
+export async function getMyRank(
+  studentId: string,
+): Promise<{ rank: number; points: number } | null> {
+  const student = await Student.findById(studentId).select(
+    "points isAmbassador",
+  );
   if (!student || !student.isAmbassador) return null;
 
-  const ahead = await Student.countDocuments({ isAmbassador: true, points: { $gt: student.points } });
+  const ahead = await Student.countDocuments({
+    isAmbassador: true,
+    points: { $gt: student.points },
+  });
   return { rank: ahead + 1, points: student.points };
 }

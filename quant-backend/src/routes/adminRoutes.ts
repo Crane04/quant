@@ -1,7 +1,13 @@
 import { Router } from "express";
 import { validate } from "../middleware/validate";
-import { requireAdminAuth, requireSuperAdmin } from "../middleware/requireAdminAuth";
-import { createAdminSchema, updateAdminSchema } from "../validators/adminValidators";
+import {
+  requireAdminAuth,
+  requireSuperAdmin,
+} from "../middleware/requireAdminAuth";
+import {
+  createAdminSchema,
+  updateAdminSchema,
+} from "../validators/adminValidators";
 import * as adminController from "../controllers/adminController";
 
 const router = Router();
@@ -61,7 +67,11 @@ router.get("/", adminController.getAdmins);
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       409: { $ref: '#/components/responses/BadRequest' }
  */
-router.post("/", validate({ body: createAdminSchema }), adminController.addAdmin);
+router.post(
+  "/",
+  validate({ body: createAdminSchema }),
+  adminController.addAdmin,
+);
 
 /**
  * @openapi
@@ -95,7 +105,11 @@ router.post("/", validate({ body: createAdminSchema }), adminController.addAdmin
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-router.patch("/:id", validate({ body: updateAdminSchema }), adminController.editAdmin);
+router.patch(
+  "/:id",
+  validate({ body: updateAdminSchema }),
+  adminController.editAdmin,
+);
 
 /**
  * @openapi

@@ -16,7 +16,9 @@ export type CourseInput = {
  * index). Re-uploading a document for a course that already has a catalogue
  * entry should reuse it rather than erroring or duplicating it.
  */
-export async function findOrCreateCourse(input: CourseInput): Promise<CourseDoc> {
+export async function findOrCreateCourse(
+  input: CourseInput,
+): Promise<CourseDoc> {
   const code = input.code.trim().toUpperCase();
 
   const existing = await Course.findOne({

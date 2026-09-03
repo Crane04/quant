@@ -11,10 +11,15 @@ const courseSchema = new Schema(
     session: { type: String, required: true, trim: true }, // e.g. "2025/2026"
     semester: { type: String, enum: ["first", "second"], required: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-courseSchema.index({ code: 1, university: 1, session: 1, semester: 1 }, { unique: true });
+courseSchema.index(
+  { code: 1, university: 1, session: 1, semester: 1 },
+  { unique: true },
+);
 
-export type CourseDoc = InferSchemaType<typeof courseSchema> & { _id: Types.ObjectId };
+export type CourseDoc = InferSchemaType<typeof courseSchema> & {
+  _id: Types.ObjectId;
+};
 export const Course = model("Course", courseSchema);

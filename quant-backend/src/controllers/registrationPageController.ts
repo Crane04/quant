@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
-import { peekRegistrationToken, consumeRegistrationToken } from "../services/registrationTokenService";
+import {
+  peekRegistrationToken,
+  consumeRegistrationToken,
+} from "../services/registrationTokenService";
 import { completeRegistration } from "../services/waConversationService";
 
 const LEVELS = ["100", "200", "300", "400", "500"];
@@ -66,19 +69,25 @@ function pageShell(title: string, body: string): string {
 export function showRegistrationForm(req: Request, res: Response): void {
   const phone = peekRegistrationToken(req.params.token);
   if (!phone) {
-    res.status(410).send(
-      pageShell(
-        "Link expired",
-        `<div class="success"><h1>This link has expired</h1><p>Go back to WhatsApp and type <b>hi</b> to get a fresh registration link.</p></div>`
-      )
-    );
+    res
+      .status(410)
+      .send(
+        pageShell(
+          "Link expired",
+          `<div class="success"><h1>This link has expired</h1><p>Go back to WhatsApp and type <b>hi</b> to get a fresh registration link.</p></div>`,
+        ),
+      );
     return;
   }
 
   res.send(pageShell("Register — Quant", renderForm(req.params.token)));
 }
 
-function renderForm(token: string, errorMessage?: string, values: Record<string, string> = {}): string {
+function renderForm(
+  token: string,
+  errorMessage?: string,
+  values: Record<string, string> = {},
+): string {
   const v = (name: string) => escapeHtml(values[name] ?? "");
   return `
     <span class="badge">Quant</span>
@@ -115,29 +124,55 @@ function renderForm(token: string, errorMessage?: string, values: Record<string,
   `;
 }
 
-export async function submitRegistrationForm(req: Request, res: Response): Promise<void> {
+export async function submitRegistrationForm(
+  req: Request,
+  res: Response,
+): Promise<void> {
   const token = req.params.token;
   const phone = peekRegistrationToken(token);
   if (!phone) {
-    res.status(410).send(
-      pageShell(
-        "Link expired",
-        `<div class="success"><h1>This link has expired</h1><p>Go back to WhatsApp and type <b>hi</b> to get a fresh registration link.</p></div>`
-      )
-    );
+    res
+      .status(410)
+      .send(
+        pageShell(
+          "Link expired",
+          `<div class="success"><h1>This link has expired</h1><p>Go back to WhatsApp and type <b>hi</b> to get a fresh registration link.</p></div>`,
+        ),
+      );
     return;
   }
 
   const body = req.body as Record<string, string>;
-  const required = ["fullName", "email", "matricNumber", "university", "department", "level"];
+  const required = [
+    "fullName",
+    "email",
+    "matricNumber",
+    "university",
+    "department",
+    "level",
+  ];
   const missing = required.filter((field) => !body[field]?.trim());
 
   if (missing.length > 0) {
-    res.status(400).send(pageShell("Register — Quant", renderForm(token, "Please fill in all required fields.", body)));
+    res
+      .status(400)
+      .send(
+        pageShell(
+          "Register — Quant",
+          renderForm(token, "Please fill in all required fields.", body),
+        ),
+      );
     return;
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim())) {
-    res.status(400).send(pageShell("Register — Quant", renderForm(token, "That email address doesn't look valid.", body)));
+    res
+      .status(400)
+      .send(
+        pageShell(
+          "Register — Quant",
+          renderForm(token, "That email address doesn't look valid.", body),
+        ),
+      );
     return;
   }
 
@@ -156,7 +191,7 @@ export async function submitRegistrationForm(req: Request, res: Response): Promi
   res.send(
     pageShell(
       "Check WhatsApp",
-      `<div class="success"><h1>✅ Almost done</h1><p>Go back to WhatsApp — we've sent a verification code to your email. Reply with it there to finish.</p></div>`
-    )
+      `<div class="success"><h1>✅ Almost done</h1><p>Go back to WhatsApp — we've sent a verification code to your email. Reply with it there to finish.</p></div>`,
+    ),
   );
 }

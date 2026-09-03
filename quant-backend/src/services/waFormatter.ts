@@ -19,7 +19,7 @@ export function formatRegistrationComplete(): string {
 export function formatEmailVerified(student: StudentDoc): string {
   return (
     `🎉 You're all set, *${student.fullName.split(" ")[0]}*!\n\n` +
-    "Ask me anything — \"send me MEE 305 pdfs\", \"what's my timetable\", \"what assignments do I have\", " +
-    "\"what's my CGPA\", or \"enroll me in MEE 305 for 2024/2025 first semester\". No menus, just ask."
+    'Ask me anything — "send me MEE 305 pdfs", "what\'s my timetable", "what assignments do I have", ' +
+    '"what\'s my CGPA", or "enroll me in MEE 305 for 2024/2025 first semester". No menus, just ask.'
   );
 }

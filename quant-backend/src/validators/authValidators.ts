@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-const phone = z.string().regex(/^\+[1-9]\d{7,14}$/, "Phone must be in E.164 format, e.g. +2348012345678");
+const phone = z
+  .string()
+  .regex(
+    /^\+[1-9]\d{7,14}$/,
+    "Phone must be in E.164 format, e.g. +2348012345678",
+  );
 const otpCode = z.string().length(6).regex(/^\d+$/, "Code must be 6 digits");
 
 export const registerSchema = z.object({

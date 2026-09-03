@@ -1,5 +1,8 @@
 import { Router } from "express";
-import { showRegistrationForm, submitRegistrationForm } from "../controllers/registrationPageController";
+import {
+  showRegistrationForm,
+  submitRegistrationForm,
+} from "../controllers/registrationPageController";
 
 const router = Router();
 

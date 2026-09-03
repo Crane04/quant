@@ -31,10 +31,12 @@ export default function RewardsPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-zinc-100">Reward Redemptions</h1>
+        <h1 className="text-xl font-semibold text-zinc-100">
+          Reward Redemptions
+        </h1>
         <p className="text-sm text-zinc-500 mt-1">
-          {redemptions.length} redemption{redemptions.length !== 1 ? "s" : ""} — vouchers &
-          merchandise fulfillment queue
+          {redemptions.length} redemption{redemptions.length !== 1 ? "s" : ""} —
+          vouchers & merchandise fulfillment queue
         </p>
       </div>
 
@@ -75,14 +77,22 @@ export default function RewardsPage() {
             <tbody className="divide-y divide-zinc-800/50">
               {redemptions.map((r: RewardRedemption) => {
                 const reward = typeof r.reward === "object" ? r.reward : null;
-                const student = typeof r.student === "object" ? r.student : null;
+                const student =
+                  typeof r.student === "object" ? r.student : null;
                 const Icon = reward ? TYPE_ICON[reward.type] : Gift;
 
                 return (
-                  <tr key={r._id} className="hover:bg-zinc-800/30 transition-colors">
+                  <tr
+                    key={r._id}
+                    className="hover:bg-zinc-800/30 transition-colors"
+                  >
                     <td className="px-4 py-3">
-                      <p className="text-sm font-medium text-zinc-100">{student?.fullName || "Unknown"}</p>
-                      <p className="text-xs text-zinc-500">{student?.email || student?.phone}</p>
+                      <p className="text-sm font-medium text-zinc-100">
+                        {student?.fullName || "Unknown"}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {student?.email || student?.phone}
+                      </p>
                     </td>
 
                     <td className="px-4 py-3">
@@ -90,18 +100,32 @@ export default function RewardsPage() {
                         <div className="w-7 h-7 rounded-lg bg-brand-500/10 flex items-center justify-center flex-shrink-0">
                           <Icon size={13} className="text-brand-400" />
                         </div>
-                        <span className="text-sm text-zinc-200">{reward?.name || "Unknown reward"}</span>
+                        <span className="text-sm text-zinc-200">
+                          {reward?.name || "Unknown reward"}
+                        </span>
                       </div>
                     </td>
 
                     <td className="px-4 py-3 text-sm text-zinc-400">
                       {r.selectedSize && <p>Size: {r.selectedSize}</p>}
-                      {r.voucherCode && <p className="font-mono text-xs">{r.voucherCode}</p>}
-                      {r.expiresAt && <p className="text-xs text-zinc-600">Expires {formatDate(r.expiresAt)}</p>}
-                      {r.failureReason && <p className="text-xs text-red-400">{r.failureReason}</p>}
+                      {r.voucherCode && (
+                        <p className="font-mono text-xs">{r.voucherCode}</p>
+                      )}
+                      {r.expiresAt && (
+                        <p className="text-xs text-zinc-600">
+                          Expires {formatDate(r.expiresAt)}
+                        </p>
+                      )}
+                      {r.failureReason && (
+                        <p className="text-xs text-red-400">
+                          {r.failureReason}
+                        </p>
+                      )}
                     </td>
 
-                    <td className="px-4 py-3 text-sm text-zinc-300">{r.pointsCost}</td>
+                    <td className="px-4 py-3 text-sm text-zinc-300">
+                      {r.pointsCost}
+                    </td>
 
                     <td className="px-4 py-3">
                       <span
@@ -115,7 +139,9 @@ export default function RewardsPage() {
                       </span>
                     </td>
 
-                    <td className="px-4 py-3 text-sm text-zinc-400">{formatDate(r.createdAt)}</td>
+                    <td className="px-4 py-3 text-sm text-zinc-400">
+                      {formatDate(r.createdAt)}
+                    </td>
                   </tr>
                 );
               })}

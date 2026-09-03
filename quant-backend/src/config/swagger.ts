@@ -19,13 +19,15 @@ const options: swaggerJsdoc.Options = {
           type: "http",
           scheme: "bearer",
           bearerFormat: "session token",
-          description: "A student's own session token from POST /auth/student-login (ambassadors only).",
+          description:
+            "A student's own session token from POST /auth/student-login (ambassadors only).",
         },
         adminSession: {
           type: "http",
           scheme: "bearer",
           bearerFormat: "session token",
-          description: "An admin's session token from POST /auth/login (admin login).",
+          description:
+            "An admin's session token from POST /auth/login (admin login).",
         },
         botServiceKey: {
           type: "apiKey",
@@ -117,7 +119,15 @@ const options: swaggerJsdoc.Options = {
             course: { $ref: "#/components/schemas/Course" },
             dayOfWeek: {
               type: "string",
-              enum: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+              enum: [
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+              ],
             },
             startTime: { type: "string", example: "09:00" },
             endTime: { type: "string", example: "11:00" },
@@ -157,10 +167,16 @@ const options: swaggerJsdoc.Options = {
             sizeBytes: { type: "integer" },
             tags: { type: "array", items: { type: "string" } },
             downloadCount: { type: "integer" },
-            category: { type: "string", enum: ["lecture_note", "exam_summary", "past_question", "other"] },
+            category: {
+              type: "string",
+              enum: ["lecture_note", "exam_summary", "past_question", "other"],
+            },
             uploadedByType: { type: "string", enum: ["Admin", "Student"] },
             uploadedBy: { type: "string" },
-            status: { type: "string", enum: ["pending", "approved", "rejected"] },
+            status: {
+              type: "string",
+              enum: ["pending", "approved", "rejected"],
+            },
             pointsAwarded: { type: "integer" },
             reviewedBy: { type: "string" },
             reviewedAt: { type: "string", format: "date-time" },
@@ -174,9 +190,17 @@ const options: swaggerJsdoc.Options = {
             student: { type: "string" },
             type: {
               type: "string",
-              enum: ["document_approved", "badge_bonus", "reward_redeemed", "admin_adjustment"],
+              enum: [
+                "document_approved",
+                "badge_bonus",
+                "reward_redeemed",
+                "admin_adjustment",
+              ],
             },
-            amount: { type: "integer", description: "Positive = earned, negative = spent" },
+            amount: {
+              type: "integer",
+              description: "Positive = earned, negative = spent",
+            },
             balanceAfter: { type: "integer" },
             description: { type: "string" },
             createdAt: { type: "string", format: "date-time" },
@@ -201,7 +225,14 @@ const options: swaggerJsdoc.Options = {
             },
             tier: {
               type: "string",
-              enum: ["bronze", "silver", "gold", "platinum", "diamond", "obsidian"],
+              enum: [
+                "bronze",
+                "silver",
+                "gold",
+                "platinum",
+                "diamond",
+                "obsidian",
+              ],
             },
             points: { type: "integer" },
             earned: { type: "boolean" },
@@ -225,7 +256,10 @@ const options: swaggerJsdoc.Options = {
             key: { type: "string" },
             name: { type: "string" },
             description: { type: "string" },
-            type: { type: "string", enum: ["token_conversion", "voucher", "merchandise"] },
+            type: {
+              type: "string",
+              enum: ["token_conversion", "voucher", "merchandise"],
+            },
             pointsCost: { type: "integer" },
             tokensGranted: { type: "integer" },
             requiresSize: { type: "boolean" },
@@ -300,19 +334,35 @@ const options: swaggerJsdoc.Options = {
       responses: {
         Unauthorized: {
           description: "Missing, invalid, or expired credentials",
-          content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
         },
         Forbidden: {
           description: "Authenticated, but not allowed to perform this action",
-          content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
         },
         NotFound: {
           description: "Resource not found",
-          content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
         },
         BadRequest: {
           description: "Validation failed",
-          content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
         },
       },
     },

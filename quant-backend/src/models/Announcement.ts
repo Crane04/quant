@@ -2,7 +2,11 @@ import { Schema, model, Types, InferSchemaType } from "mongoose";
 
 const announcementSchema = new Schema(
   {
-    type: { type: String, enum: ["lecture_alert", "announcement"], required: true },
+    type: {
+      type: String,
+      enum: ["lecture_alert", "announcement"],
+      required: true,
+    },
     title: { type: String, required: true, trim: true },
     message: { type: String, required: true, trim: true },
 
@@ -17,15 +21,26 @@ const announcementSchema = new Schema(
     level: { type: String, required: true, trim: true },
 
     createdByType: { type: String, enum: ["Student", "Admin"], required: true },
-    createdBy: { type: Schema.Types.ObjectId, required: true, refPath: "createdByType" },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      refPath: "createdByType",
+    },
 
     sentAt: { type: Date }, // set once the bot has pushed it out over WhatsApp
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-announcementSchema.index({ university: 1, department: 1, level: 1, createdAt: -1 });
+announcementSchema.index({
+  university: 1,
+  department: 1,
+  level: 1,
+  createdAt: -1,
+});
 announcementSchema.index({ sentAt: 1 });
 
-export type AnnouncementDoc = InferSchemaType<typeof announcementSchema> & { _id: Types.ObjectId };
+export type AnnouncementDoc = InferSchemaType<typeof announcementSchema> & {
+  _id: Types.ObjectId;
+};
 export const Announcement = model("Announcement", announcementSchema);

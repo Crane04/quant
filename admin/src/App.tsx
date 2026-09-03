@@ -32,7 +32,9 @@ function ProtectedApp() {
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/rewards" element={<RewardsPage />} />
         <Route path="/announcements" element={<AnnouncementsPage />} />
-        {admin?.role === "super_admin" && <Route path="/admins" element={<AdminsPage />} />}
+        {admin?.role === "super_admin" && (
+          <Route path="/admins" element={<AdminsPage />} />
+        )}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

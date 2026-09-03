@@ -62,7 +62,7 @@ router.post(
   resolveStudentContext,
   requireAmbassador,
   validate({ body: createAnnouncementSchema }),
-  controller.createAnnouncement
+  controller.createAnnouncement,
 );
 
 /**
@@ -90,7 +90,7 @@ router.get(
   "/mine",
   resolveStudentContext,
   validate({ query: myAnnouncementsQuerySchema }),
-  controller.getMyAnnouncements
+  controller.getMyAnnouncements,
 );
 
 /**
@@ -166,7 +166,7 @@ router.get(
   "/",
   requireAdminAuth,
   validate({ query: listAnnouncementsQuerySchema }),
-  controller.listAllAnnouncements
+  controller.listAllAnnouncements,
 );
 
 /**

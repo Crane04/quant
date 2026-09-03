@@ -21,7 +21,10 @@ export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
-  const { token, student } = await authService.login(req.body.email, req.body.password);
+  const { token, student } = await authService.login(
+    req.body.email,
+    req.body.password,
+  );
   sendSuccess(res, { token, student: toStudentDTO(student) });
 });
 

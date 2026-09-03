@@ -7,10 +7,12 @@ const lectureSummarySchema = new Schema(
     content: { type: String, required: true }, // the summary text sent to students
     sourceDocument: { type: Schema.Types.ObjectId, ref: "DocumentFile" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 lectureSummarySchema.index({ course: 1, createdAt: -1 });
 
-export type LectureSummaryDoc = InferSchemaType<typeof lectureSummarySchema> & { _id: Types.ObjectId };
+export type LectureSummaryDoc = InferSchemaType<typeof lectureSummarySchema> & {
+  _id: Types.ObjectId;
+};
 export const LectureSummary = model("LectureSummary", lectureSummarySchema);

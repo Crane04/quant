@@ -84,13 +84,16 @@ export async function createAdmin({
 
 export async function updateAdmin(
   id: string,
-  updates: Partial<{ role: AdminRole; isActive: boolean }>
+  updates: Partial<{ role: AdminRole; isActive: boolean }>,
 ): Promise<SafeAdmin | null> {
   const admin = await Admin.findByIdAndUpdate(id, updates, { new: true });
   return admin ? toSafeAdmin(admin) : null;
 }
 
-export async function updateAdminPassword(id: string, password: string): Promise<SafeAdmin | null> {
+export async function updateAdminPassword(
+  id: string,
+  password: string,
+): Promise<SafeAdmin | null> {
   const admin = await Admin.findById(id);
   if (!admin) return null;
 

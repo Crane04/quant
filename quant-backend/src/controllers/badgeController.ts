@@ -9,7 +9,9 @@ async function getBadgesForStudent(studentId: string) {
     Badge.find().sort({ category: 1, points: 1 }),
     StudentBadge.find({ student: studentId }),
   ]);
-  const earnedByBadge = new Map(earned.map((e) => [e.badge.toString(), e.earnedAt]));
+  const earnedByBadge = new Map(
+    earned.map((e) => [e.badge.toString(), e.earnedAt]),
+  );
 
   return badges.map((b) => ({
     id: b._id.toString(),
@@ -32,6 +34,8 @@ export const getMyBadges = asyncHandler(async (req: Request, res: Response) => {
 });
 
 // Admin oversight — same shape as the self-service endpoint, for any student.
-export const getStudentBadges = asyncHandler(async (req: Request, res: Response) => {
-  sendSuccess(res, await getBadgesForStudent(req.params.studentId));
-});
+export const getStudentBadges = asyncHandler(
+  async (req: Request, res: Response) => {
+    sendSuccess(res, await getBadgesForStudent(req.params.studentId));
+  },
+);

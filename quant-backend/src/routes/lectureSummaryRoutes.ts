@@ -33,7 +33,12 @@ const router = Router();
  *                   properties: { data: { type: array, items: { $ref: '#/components/schemas/LectureSummary' } } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
-router.get("/mine", resolveStudentContext, validate({ query: myTimetableQuerySchema }), controller.getMySummaries);
+router.get(
+  "/mine",
+  resolveStudentContext,
+  validate({ query: myTimetableQuerySchema }),
+  controller.getMySummaries,
+);
 
 /**
  * @openapi
@@ -114,7 +119,7 @@ router.post(
   "/",
   requireBotApiKey,
   validate({ body: createLectureSummarySchema }),
-  controller.createLectureSummary
+  controller.createLectureSummary,
 );
 
 /**
@@ -143,7 +148,7 @@ router.patch(
   "/:id",
   requireBotApiKey,
   validate({ body: updateLectureSummarySchema }),
-  controller.updateLectureSummary
+  controller.updateLectureSummary,
 );
 
 /**

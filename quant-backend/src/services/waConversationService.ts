@@ -2,8 +2,19 @@ import crypto from "crypto";
 import { Student, StudentDoc } from "../models/Student";
 import * as authService from "./authService";
 import { verifyOtp, issueOtp } from "./otpService";
-import { sendWhatsAppText, sendWhatsAppDocument, sendWhatsAppFlow, sendWhatsAppCtaUrl } from "./waService";
-import { getWaSession, setWaSession, clearWaSession, appendWaHistory, WaState } from "./waSession";
+import {
+  sendWhatsAppText,
+  sendWhatsAppDocument,
+  sendWhatsAppFlow,
+  sendWhatsAppCtaUrl,
+} from "./waService";
+import {
+  getWaSession,
+  setWaSession,
+  clearWaSession,
+  appendWaHistory,
+  WaState,
+} from "./waSession";
 import { completeChat, completeJson, ChatMessage } from "./groqAgentService";
 import { TOOL_DEFINITIONS, executeTool } from "./waTools";
 import { createRegistrationToken } from "./registrationTokenService";
@@ -67,7 +78,11 @@ tables or headers, no long paragraphs.`;
 // numbers still run fully in parallel — only same-phone calls are chained.
 const processingQueues = new Map<string, Promise<void>>();
 
-function enqueue(from: string, task: () => Promise<void>, errorLabel: string): Promise<void> {
+function enqueue(
+  from: string,
+  task: () => Promise<void>,
+  errorLabel: string,
+): Promise<void> {
   const previous = processingQueues.get(from) ?? Promise.resolve();
   const next = previous.then(task).catch((err) => {
     logger.error(errorLabel, {
@@ -84,11 +99,21 @@ function enqueue(from: string, task: () => Promise<void>, errorLabel: string): P
   return next;
 }
 
-export function processIncomingMessage(from: string, body: string): Promise<void> {
-  return enqueue(from, () => processIncomingMessageInner(from, body), "WhatsApp message processing failed");
+export function processIncomingMessage(
+  from: string,
+  body: string,
+): Promise<void> {
+  return enqueue(
+    from,
+    () => processIncomingMessageInner(from, body),
+    "WhatsApp message processing failed",
+  );
 }
 
-async function processIncomingMessageInner(from: string, body: string): Promise<void> {
+async function processIncomingMessageInner(
+  from: string,
+  body: string,
+): Promise<void> {
   const input = body.trim();
   if (!input) return;
 
@@ -107,7 +132,10 @@ async function processIncomingMessageInner(from: string, body: string): Promise<
   // silently reset to IDLE and their code — or "resend" request — would get routed
   // to the general assistant, which has no idea a verification is pending.
   if (!student || !student.isEmailVerified || wa.state !== "IDLE") {
-    const state = student && !student.isEmailVerified && wa.state === "IDLE" ? "AWAITING_EMAIL_OTP" : wa.state;
+    const state =
+      student && !student.isEmailVerified && wa.state === "IDLE"
+        ? "AWAITING_EMAIL_OTP"
+        : wa.state;
     await handleRegistration(from, input, state, wa.data);
     return;
   }
@@ -117,7 +145,7 @@ async function processIncomingMessageInner(from: string, body: string): Promise<
     clearWaSession(from);
     await reply(
       from,
-      `Hey ${student.fullName.split(" ")[0]}! Ask me anything — course material, your timetable, assignments, CGPA, or enrolling in a course.`
+      `Hey ${student.fullName.split(" ")[0]}! Ask me anything — course material, your timetable, assignments, CGPA, or enrolling in a course.`,
     );
     return;
   }
@@ -125,7 +153,11 @@ async function processIncomingMessageInner(from: string, body: string): Promise<
   await runAgent(from, student, input);
 }
 
-async function runAgent(from: string, student: StudentDoc, input: string): Promise<void> {
+async function runAgent(
+  from: string,
+  student: StudentDoc,
+  input: string,
+): Promise<void> {
   const history = getWaSession(from).messages;
   const turn: ChatMessage[] = [
     { role: "system", content: buildSystemPrompt(student) },
@@ -143,7 +175,11 @@ async function runAgent(from: string, student: StudentDoc, input: string): Promi
     if (!message) break;
 
     if (message.tool_calls && message.tool_calls.length > 0) {
-      turn.push({ role: "assistant", content: message.content ?? null, tool_calls: message.tool_calls });
+      turn.push({
+        role: "assistant",
+        content: message.content ?? null,
+        tool_calls: message.tool_calls,
+      });
 
       for (const call of message.tool_calls) {
         let args: Record<string, unknown> = {};
@@ -153,15 +189,27 @@ async function runAgent(from: string, student: StudentDoc, input: string): Promi
           // leave args empty — the tool executor will just get no params
         }
 
-        const result = await executeTool(call.function.name, args, student).catch((err) => ({
+        const result = await executeTool(
+          call.function.name,
+          args,
+          student,
+        ).catch((err) => ({
           error: err instanceof Error ? err.message : "Tool execution failed",
         }));
 
         if (call.function.name === "get_document_link") {
-          const r = result as { found?: boolean; fileUrl?: string; filename?: string };
+          const r = result as {
+            found?: boolean;
+            fileUrl?: string;
+            filename?: string;
+          };
           if (r.found && r.fileUrl && !sentFileUrls.has(r.fileUrl)) {
             sentFileUrls.add(r.fileUrl);
-            await sendWhatsAppDocument(from, r.fileUrl, r.filename ?? "document.pdf").catch((err) => {
+            await sendWhatsAppDocument(
+              from,
+              r.fileUrl,
+              r.filename ?? "document.pdf",
+            ).catch((err) => {
               logger.error("Failed to send WhatsApp document", {
                 to: from,
                 error: err instanceof Error ? err.message : "unknown",
@@ -185,13 +233,17 @@ async function runAgent(from: string, student: StudentDoc, input: string): Promi
   }
 
   if (!finalReply) {
-    finalReply = "Sorry, I'm having trouble right now — please try again in a moment.";
+    finalReply =
+      "Sorry, I'm having trouble right now — please try again in a moment.";
   }
 
   // Defense in depth: strip any URL the model wrote anyway, despite the system
   // prompt telling it not to — the file already went out as a real attachment.
   if (sentFileUrls.size > 0) {
-    finalReply = finalReply.replace(/https?:\/\/\S+/g, "").replace(/[ \t]+\n/g, "\n").trim();
+    finalReply = finalReply
+      .replace(/https?:\/\/\S+/g, "")
+      .replace(/[ \t]+\n/g, "\n")
+      .trim();
     if (!finalReply) finalReply = "Here you go!";
   }
 
@@ -202,7 +254,14 @@ async function runAgent(from: string, student: StudentDoc, input: string): Promi
   ]);
 }
 
-const REQUIRED_REG_FIELDS = ["fullName", "email", "matricNumber", "university", "department", "level"] as const;
+const REQUIRED_REG_FIELDS = [
+  "fullName",
+  "email",
+  "matricNumber",
+  "university",
+  "department",
+  "level",
+] as const;
 const REG_FIELD_LABELS: Record<(typeof REQUIRED_REG_FIELDS)[number], string> = {
   fullName: "full name",
   email: "email",
@@ -233,28 +292,39 @@ Return strict JSON with only the keys you extracted, e.g. {"fullName": "Ada Love
 /** Extracts whatever registration fields it can from one free-form message. */
 async function extractRegistrationFields(
   input: string,
-  known: Record<string, unknown>
+  known: Record<string, unknown>,
 ): Promise<Record<string, string>> {
   const result = await completeJson([
     { role: "system", content: REG_EXTRACTION_SYSTEM_PROMPT },
-    { role: "user", content: `Already known: ${JSON.stringify(known)}\n\nLatest message: ${input}` },
+    {
+      role: "user",
+      content: `Already known: ${JSON.stringify(known)}\n\nLatest message: ${input}`,
+    },
   ]);
   if (!result) return {};
 
   const extracted: Record<string, string> = {};
   for (const field of REQUIRED_REG_FIELDS) {
     const value = result[field];
-    if (typeof value === "string" && value.trim()) extracted[field] = value.trim();
+    if (typeof value === "string" && value.trim())
+      extracted[field] = value.trim();
   }
 
-  if (extracted.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(extracted.email)) delete extracted.email;
+  if (extracted.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(extracted.email))
+    delete extracted.email;
   if (extracted.email) extracted.email = extracted.email.toLowerCase();
-  if (extracted.level && !["100", "200", "300", "400", "500"].includes(extracted.level)) delete extracted.level;
+  if (
+    extracted.level &&
+    !["100", "200", "300", "400", "500"].includes(extracted.level)
+  )
+    delete extracted.level;
 
   // Deterministic fallback for common shorthand ("200l", "300L", "400lvl", "yr 4") the
   // model can miss — don't rely on it alone for something a regex nails reliably.
   if (!extracted.level && !known.level) {
-    const shorthand = input.match(/\b(100|200|300|400|500)\s*(?:l|lvl|level)\b/i);
+    const shorthand = input.match(
+      /\b(100|200|300|400|500)\s*(?:l|lvl|level)\b/i,
+    );
     if (shorthand) extracted.level = shorthand[1];
   }
 
@@ -277,7 +347,10 @@ export interface RegistrationFields {
  * same dead-end recovery — if the account got created but the OTP send failed,
  * resend rather than error out on a duplicate-account conflict when they retry.
  */
-export async function completeRegistration(from: string, fields: RegistrationFields): Promise<void> {
+export async function completeRegistration(
+  from: string,
+  fields: RegistrationFields,
+): Promise<void> {
   try {
     await authService.registerStudent(
       {
@@ -288,7 +361,7 @@ export async function completeRegistration(from: string, fields: RegistrationFie
         // point they'd need a password-reset flow (not built yet).
         password: crypto.randomBytes(24).toString("hex"),
       },
-      true // bot-origin: phone auto-verified, only an email OTP goes out
+      true, // bot-origin: phone auto-verified, only an email OTP goes out
     );
   } catch (err) {
     const existing = await Student.findOne({ phone: from });
@@ -302,7 +375,7 @@ export async function completeRegistration(from: string, fields: RegistrationFie
         await reply(
           from,
           "⚠️ I couldn't send a verification code to that email address. " +
-            "Type *hi* to start over with a different email."
+            "Type *hi* to start over with a different email.",
         );
       }
       return;
@@ -346,11 +419,21 @@ interface FlowRegistrationResponse {
 }
 
 /** Handles the final `nfm_reply` webhook message once the registration Flow is submitted. */
-export function processFlowSubmission(from: string, responseJson: string): Promise<void> {
-  return enqueue(from, () => processFlowSubmissionInner(from, responseJson), "WhatsApp flow submission processing failed");
+export function processFlowSubmission(
+  from: string,
+  responseJson: string,
+): Promise<void> {
+  return enqueue(
+    from,
+    () => processFlowSubmissionInner(from, responseJson),
+    "WhatsApp flow submission processing failed",
+  );
 }
 
-async function processFlowSubmissionInner(from: string, responseJson: string): Promise<void> {
+async function processFlowSubmissionInner(
+  from: string,
+  responseJson: string,
+): Promise<void> {
   let data: FlowRegistrationResponse;
   try {
     data = JSON.parse(responseJson);
@@ -374,13 +457,14 @@ async function handleRegistration(
   from: string,
   input: string,
   state: WaState,
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
 ): Promise<void> {
   if (state === "IDLE") {
     try {
       await sendWhatsAppFlow(from, {
         headerText: "Welcome to Quant",
-        bodyText: "Let's get you registered — tap below to fill in your details.",
+        bodyText:
+          "Let's get you registered — tap below to fill in your details.",
         ctaText: "Register",
         firstScreen: "PERSONAL_INFO",
       });
@@ -401,7 +485,8 @@ async function handleRegistration(
           // A CTA-URL button opens in WhatsApp's own in-app browser — a plain
           // link in a text message would kick out to the external browser instead.
           await sendWhatsAppCtaUrl(from, {
-            bodyText: "Let's get you registered — tap below to fill in your details. (Link expires in 30 minutes.)",
+            bodyText:
+              "Let's get you registered — tap below to fill in your details. (Link expires in 30 minutes.)",
             buttonText: "Register",
             url: `${env.APP_BASE_URL}/register/${token}`,
           });
@@ -420,12 +505,18 @@ async function handleRegistration(
   }
 
   if (state === "AWAITING_FLOW_SUBMISSION") {
-    await reply(from, "Just fill in the form above 👆 to finish registering — or type *hi* to restart.");
+    await reply(
+      from,
+      "Just fill in the form above 👆 to finish registering — or type *hi* to restart.",
+    );
     return;
   }
 
   if (state === "AWAITING_WEB_REGISTRATION") {
-    await reply(from, "Just fill in the form from the link above 👆 to finish registering — or type *hi* for a new link.");
+    await reply(
+      from,
+      "Just fill in the form from the link above 👆 to finish registering — or type *hi* for a new link.",
+    );
     return;
   }
 
@@ -434,7 +525,10 @@ async function handleRegistration(
       const extracted = await extractRegistrationFields(input, data);
       setWaSession(from, "AWAITING_REG_DETAILS", extracted);
 
-      const merged = { ...data, ...extracted } as Record<string, string | undefined>;
+      const merged = { ...data, ...extracted } as Record<
+        string,
+        string | undefined
+      >;
       const missing = REQUIRED_REG_FIELDS.filter((field) => !merged[field]);
 
       if (missing.length > 0) {
@@ -443,7 +537,7 @@ async function handleRegistration(
           from,
           Object.keys(extracted).length > 0
             ? `Got it. Still need your ${list} to finish up.`
-            : `I couldn't quite pick that up — still need your ${list}.`
+            : `I couldn't quite pick that up — still need your ${list}.`,
         );
         return;
       }
@@ -470,9 +564,15 @@ async function handleRegistration(
         try {
           await issueOtp(email, "email", "email_verification");
           setWaSession(from, "AWAITING_EMAIL_OTP");
-          await reply(from, "✅ Sent a new 6-digit code to your email — reply with it here.");
+          await reply(
+            from,
+            "✅ Sent a new 6-digit code to your email — reply with it here.",
+          );
         } catch {
-          await reply(from, "⚠️ Couldn't send a new code right now — try again in a bit.");
+          await reply(
+            from,
+            "⚠️ Couldn't send a new code right now — try again in a bit.",
+          );
         }
         return;
       }
@@ -482,13 +582,17 @@ async function handleRegistration(
         const student = await Student.findOneAndUpdate(
           { email },
           { isEmailVerified: true },
-          { new: true }
+          { new: true },
         );
         clearWaSession(from);
         await reply(from, fmt.formatEmailVerified(student!));
       } catch (err) {
-        const message = err instanceof Error ? err.message : "That code didn't work";
-        await reply(from, `⚠️ ${message} — try again, or type *resend* for a new code.`);
+        const message =
+          err instanceof Error ? err.message : "That code didn't work";
+        await reply(
+          from,
+          `⚠️ ${message} — try again, or type *resend* for a new code.`,
+        );
       }
       return;
     }

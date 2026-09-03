@@ -1,6 +1,14 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Coins, Crown, Loader2, Medal, ShieldCheck, Star, Trophy } from "lucide-react";
+import {
+  Coins,
+  Crown,
+  Loader2,
+  Medal,
+  ShieldCheck,
+  Star,
+  Trophy,
+} from "lucide-react";
 import { fetchStudents } from "../services/api";
 
 const RANK_ICON = [Crown, Trophy, Medal];
@@ -16,7 +24,9 @@ export default function LeaderboardPage() {
 
   const ranked = useMemo(() => {
     const students = data?.data || [];
-    const filtered = ambassadorsOnly ? students.filter((s) => s.isAmbassador) : students;
+    const filtered = ambassadorsOnly
+      ? students.filter((s) => s.isAmbassador)
+      : students;
     return [...filtered].sort((a, b) => b.points - a.points);
   }, [data, ambassadorsOnly]);
 
@@ -25,7 +35,9 @@ export default function LeaderboardPage() {
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-xl font-semibold text-zinc-100">Leaderboard</h1>
-          <p className="text-sm text-zinc-500 mt-1">Top contributors by points</p>
+          <p className="text-sm text-zinc-500 mt-1">
+            Top contributors by points
+          </p>
         </div>
 
         <label className="flex items-center gap-2 text-sm text-zinc-400">
@@ -74,22 +86,35 @@ export default function LeaderboardPage() {
               {ranked.map((student, index) => {
                 const RankIcon = RANK_ICON[index];
                 return (
-                  <tr key={student.id} className="hover:bg-zinc-800/30 transition-colors">
+                  <tr
+                    key={student.id}
+                    className="hover:bg-zinc-800/30 transition-colors"
+                  >
                     <td className="px-4 py-3">
                       {RankIcon ? (
                         <RankIcon size={18} className={RANK_COLOR[index]} />
                       ) : (
-                        <span className="text-sm text-zinc-500 pl-1">#{index + 1}</span>
+                        <span className="text-sm text-zinc-500 pl-1">
+                          #{index + 1}
+                        </span>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-zinc-100">{student.fullName}</p>
-                        {student.isAmbassador && <ShieldCheck size={13} className="text-brand-400" />}
+                        <p className="text-sm font-medium text-zinc-100">
+                          {student.fullName}
+                        </p>
+                        {student.isAmbassador && (
+                          <ShieldCheck size={13} className="text-brand-400" />
+                        )}
                       </div>
-                      <p className="text-xs text-zinc-500">{student.level ? `${student.level}L` : ""}</p>
+                      <p className="text-xs text-zinc-500">
+                        {student.level ? `${student.level}L` : ""}
+                      </p>
                     </td>
-                    <td className="px-4 py-3 text-sm text-zinc-400">{student.department || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-zinc-400">
+                      {student.department || "—"}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5 text-sm text-zinc-200">
                         <Star size={13} className="text-amber-400" />

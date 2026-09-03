@@ -21,7 +21,9 @@ function getPrivateKeyPem(): string {
   if (!env.META_WA_FLOW_PRIVATE_KEY_B64) {
     throw new Error("META_WA_FLOW_PRIVATE_KEY_B64 is not configured");
   }
-  return Buffer.from(env.META_WA_FLOW_PRIVATE_KEY_B64, "base64").toString("utf8");
+  return Buffer.from(env.META_WA_FLOW_PRIVATE_KEY_B64, "base64").toString(
+    "utf8",
+  );
 }
 
 /**
@@ -40,17 +42,25 @@ export function decryptFlowRequest(body: {
       padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
       oaepHash: "sha256",
     },
-    Buffer.from(body.encrypted_aes_key, "base64")
+    Buffer.from(body.encrypted_aes_key, "base64"),
   );
 
   const iv = Buffer.from(body.initial_vector, "base64");
   const flowDataBuffer = Buffer.from(body.encrypted_flow_data, "base64");
-  const ciphertext = flowDataBuffer.subarray(0, flowDataBuffer.length - AUTH_TAG_LENGTH);
-  const authTag = flowDataBuffer.subarray(flowDataBuffer.length - AUTH_TAG_LENGTH);
+  const ciphertext = flowDataBuffer.subarray(
+    0,
+    flowDataBuffer.length - AUTH_TAG_LENGTH,
+  );
+  const authTag = flowDataBuffer.subarray(
+    flowDataBuffer.length - AUTH_TAG_LENGTH,
+  );
 
   const decipher = crypto.createDecipheriv("aes-128-gcm", aesKey, iv);
   decipher.setAuthTag(authTag);
-  const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  const decrypted = Buffer.concat([
+    decipher.update(ciphertext),
+    decipher.final(),
+  ]);
 
   return { request: JSON.parse(decrypted.toString("utf8")), aesKey, iv };
 }
@@ -60,11 +70,18 @@ export function decryptFlowRequest(body: {
  * (every byte XORed with 0xFF) — one of Meta's spec quirks. Returned as a raw
  * base64 string; the HTTP response body is just this string, Content-Type text/plain.
  */
-export function encryptFlowResponse(payload: unknown, aesKey: Buffer, iv: Buffer): string {
+export function encryptFlowResponse(
+  payload: unknown,
+  aesKey: Buffer,
+  iv: Buffer,
+): string {
   const flippedIv = Buffer.from(iv.map((b) => b ^ 0xff));
 
   const cipher = crypto.createCipheriv("aes-128-gcm", aesKey, flippedIv);
-  const encrypted = Buffer.concat([cipher.update(JSON.stringify(payload), "utf8"), cipher.final()]);
+  const encrypted = Buffer.concat([
+    cipher.update(JSON.stringify(payload), "utf8"),
+    cipher.final(),
+  ]);
   const authTag = cipher.getAuthTag();
 
   return Buffer.concat([encrypted, authTag]).toString("base64");

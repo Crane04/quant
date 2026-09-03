@@ -17,7 +17,11 @@ export const getAdmins = asyncHandler(async (_req: Request, res: Response) => {
 });
 
 export const addAdmin = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password, role } = req.body as { email: string; password: string; role?: AdminRole };
+  const { email, password, role } = req.body as {
+    email: string;
+    password: string;
+    role?: AdminRole;
+  };
   const admin = await createAdmin({ email, password, role });
   sendSuccess(res, admin, undefined, 201);
 });

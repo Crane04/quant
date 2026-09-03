@@ -65,7 +65,7 @@ router.post(
   "/:id/redeem",
   resolveStudentContext,
   validate({ body: redeemRewardSchema }),
-  controller.redeem
+  controller.redeem,
 );
 
 /**

@@ -11,12 +11,17 @@ const rewardRedemptionSchema = new Schema(
     expiresAt: { type: Date },
     failureReason: { type: String },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 rewardRedemptionSchema.index({ student: 1, createdAt: -1 });
 
-export type RewardRedemptionDoc = InferSchemaType<typeof rewardRedemptionSchema> & {
+export type RewardRedemptionDoc = InferSchemaType<
+  typeof rewardRedemptionSchema
+> & {
   _id: Types.ObjectId;
 };
-export const RewardRedemption = model("RewardRedemption", rewardRedemptionSchema);
+export const RewardRedemption = model(
+  "RewardRedemption",
+  rewardRedemptionSchema,
+);

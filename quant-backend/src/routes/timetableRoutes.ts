@@ -37,7 +37,7 @@ router.get(
   "/mine",
   resolveStudentContext,
   validate({ query: myTimetableQuerySchema }),
-  timetableController.getMyTimetable
+  timetableController.getMyTimetable,
 );
 
 /**
@@ -94,7 +94,12 @@ router.get("/course/:courseId", timetableController.getCourseTimetable);
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       400: { $ref: '#/components/responses/BadRequest' }
  */
-router.post("/", requireBotApiKey, validate({ body: createSlotSchema }), timetableController.createSlot);
+router.post(
+  "/",
+  requireBotApiKey,
+  validate({ body: createSlotSchema }),
+  timetableController.createSlot,
+);
 
 /**
  * @openapi
@@ -122,7 +127,7 @@ router.patch(
   "/:id",
   requireBotApiKey,
   validate({ body: updateSlotSchema }),
-  timetableController.updateSlot
+  timetableController.updateSlot,
 );
 
 /**

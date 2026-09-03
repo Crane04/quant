@@ -36,7 +36,11 @@ const router = Router();
  *                 - type: object
  *                   properties: { data: { type: array, items: { $ref: '#/components/schemas/Course' } } }
  */
-router.get("/", validate({ query: listCoursesQuerySchema }), courseController.listCourses);
+router.get(
+  "/",
+  validate({ query: listCoursesQuerySchema }),
+  courseController.listCourses,
+);
 
 /**
  * @openapi
@@ -120,7 +124,12 @@ router.get("/:id", courseController.getCourse);
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       400: { $ref: '#/components/responses/BadRequest' }
  */
-router.post("/", requireAdminAuth, validate({ body: createCourseSchema }), courseController.createCourse);
+router.post(
+  "/",
+  requireAdminAuth,
+  validate({ body: createCourseSchema }),
+  courseController.createCourse,
+);
 
 /**
  * @openapi
@@ -148,7 +157,7 @@ router.patch(
   "/:id",
   requireAdminAuth,
   validate({ body: updateCourseSchema }),
-  courseController.updateCourse
+  courseController.updateCourse,
 );
 
 /**
@@ -203,7 +212,7 @@ router.post(
   "/enroll",
   resolveStudentContext,
   validate({ body: enrollSchema }),
-  courseController.enrollInCourses
+  courseController.enrollInCourses,
 );
 
 export default router;

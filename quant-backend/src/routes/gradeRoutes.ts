@@ -2,7 +2,10 @@ import { Router } from "express";
 import { resolveStudentContext } from "../middleware/resolveStudentContext";
 import { validate } from "../middleware/validate";
 import * as controller from "../controllers/gradeController";
-import { addGradeSchema, updateGradeSchema } from "../validators/gradeValidators";
+import {
+  addGradeSchema,
+  updateGradeSchema,
+} from "../validators/gradeValidators";
 
 const router = Router();
 
@@ -85,7 +88,12 @@ router.get("/mine/cgpa", resolveStudentContext, controller.getMyCgpa);
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       400: { $ref: '#/components/responses/BadRequest' }
  */
-router.post("/", resolveStudentContext, validate({ body: addGradeSchema }), controller.addOrUpdateGrade);
+router.post(
+  "/",
+  resolveStudentContext,
+  validate({ body: addGradeSchema }),
+  controller.addOrUpdateGrade,
+);
 
 /**
  * @openapi
@@ -112,7 +120,7 @@ router.patch(
   "/:id",
   resolveStudentContext,
   validate({ body: updateGradeSchema }),
-  controller.addOrUpdateGrade
+  controller.addOrUpdateGrade,
 );
 
 /**

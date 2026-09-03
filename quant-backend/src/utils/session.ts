@@ -13,7 +13,7 @@ function hashToken(token: string): string {
 export async function createSession(
   actorType: SessionActorType,
   actorId: string,
-  ttlMs: number
+  ttlMs: number,
 ): Promise<string> {
   const token = generateSessionToken();
   await Session.create({
@@ -25,7 +25,10 @@ export async function createSession(
   return token;
 }
 
-export function findSession(actorType: SessionActorType, token: string): Promise<SessionDoc | null> {
+export function findSession(
+  actorType: SessionActorType,
+  token: string,
+): Promise<SessionDoc | null> {
   return Session.findOne({
     actorType,
     tokenHash: hashToken(token),
@@ -37,6 +40,9 @@ export async function revokeSession(token: string): Promise<void> {
   await Session.deleteOne({ tokenHash: hashToken(token) });
 }
 
-export async function revokeAllSessions(actorType: SessionActorType, actorId: string): Promise<void> {
+export async function revokeAllSessions(
+  actorType: SessionActorType,
+  actorId: string,
+): Promise<void> {
   await Session.deleteMany({ actorType, actorId });
 }

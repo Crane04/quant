@@ -33,7 +33,7 @@ const readStoredAdmin = (): AdminUser | null => {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem(AUTH_TOKEN_KEY)
+    localStorage.getItem(AUTH_TOKEN_KEY),
   );
   const [admin, setAdmin] = useState<AdminUser | null>(() => readStoredAdmin());
 
@@ -60,7 +60,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     window.addEventListener("quant-auth-expired", handleExpired);
-    return () => window.removeEventListener("quant-auth-expired", handleExpired);
+    return () =>
+      window.removeEventListener("quant-auth-expired", handleExpired);
   }, []);
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       logout,
     }),
-    [admin, token]
+    [admin, token],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -24,10 +24,15 @@ export async function viewDocument(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  await DocumentFile.updateOne({ _id: doc._id }, { $inc: { downloadCount: 1 } });
+  await DocumentFile.updateOne(
+    { _id: doc._id },
+    { $inc: { downloadCount: 1 } },
+  );
 
   const course = doc.course as unknown as { code?: string } | undefined;
-  const title = escapeHtml(`${course?.code ? `${course.code} — ` : ""}${doc.title}`);
+  const title = escapeHtml(
+    `${course?.code ? `${course.code} — ` : ""}${doc.title}`,
+  );
   const fileUrl = doc.fileUrl;
   const viewerSrc = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(fileUrl)}`;
 

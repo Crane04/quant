@@ -41,7 +41,12 @@ const router = Router();
  *                   properties: { data: { type: array, items: { $ref: '#/components/schemas/DocumentFile' } } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
-router.get("/mine", resolveStudentContext, validate({ query: myTimetableQuerySchema }), controller.getMyDocuments);
+router.get(
+  "/mine",
+  resolveStudentContext,
+  validate({ query: myTimetableQuerySchema }),
+  controller.getMyDocuments,
+);
 
 /**
  * @openapi
@@ -93,7 +98,7 @@ router.post(
   resolveStudentContext,
   upload.single("pdf"),
   validate({ body: createDocumentSchema }),
-  controller.createMyDocument
+  controller.createMyDocument,
 );
 
 /**
@@ -148,7 +153,7 @@ router.get(
   "/",
   requireAdminAuth,
   validate({ query: listDocumentsQuerySchema }),
-  controller.listDocuments
+  controller.listDocuments,
 );
 
 /**
@@ -221,7 +226,7 @@ router.post(
   requireAdminAuth,
   upload.single("pdf"),
   validate({ body: createDocumentSchema }),
-  controller.createDocument
+  controller.createDocument,
 );
 
 /**
@@ -259,7 +264,7 @@ router.patch(
   "/:id",
   requireAdminAuth,
   validate({ body: updateDocumentSchema }),
-  controller.updateDocument
+  controller.updateDocument,
 );
 
 /**
@@ -303,7 +308,7 @@ router.patch(
   "/:id/review",
   requireAdminAuth,
   validate({ body: reviewDocumentSchema }),
-  controller.reviewDocument
+  controller.reviewDocument,
 );
 
 /**

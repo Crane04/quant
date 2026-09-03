@@ -46,10 +46,13 @@ api.interceptors.response.use(
       window.dispatchEvent(new Event("quant-auth-expired"));
     }
     return Promise.reject(error);
-  }
+  },
 );
 
-export const loginAdmin = async (email: string, password: string): Promise<LoginResponse> => {
+export const loginAdmin = async (
+  email: string,
+  password: string,
+): Promise<LoginResponse> => {
   const { data } = await api.post("/auth/login", { email, password });
   return data.data;
 };
@@ -74,7 +77,7 @@ export const fetchDocuments = async (filters?: {
 
 export const reviewDocument = async (
   id: string,
-  review: { status: "approved" | "rejected"; rejectionReason?: string }
+  review: { status: "approved" | "rejected"; rejectionReason?: string },
 ): Promise<PDFDoc> => {
   const { data } = await api.patch(`/documents/${id}/review`, review);
   return data.data;
@@ -92,7 +95,10 @@ export const fetchCourses = async (filters?: {
   return data;
 };
 
-export const uploadDocument = async (file: File, payload: UploadPayload): Promise<PDFDoc> => {
+export const uploadDocument = async (
+  file: File,
+  payload: UploadPayload,
+): Promise<PDFDoc> => {
   const form = new FormData();
   form.append("pdf", file);
   Object.entries(payload).forEach(([k, v]) => form.append(k, String(v)));
@@ -106,7 +112,7 @@ export const deleteDocument = async (id: string): Promise<void> => {
 
 export const updateDocument = async (
   id: string,
-  updates: Partial<{ title: string; tags: string; courseId: string }>
+  updates: Partial<{ title: string; tags: string; courseId: string }>,
 ): Promise<PDFDoc> => {
   const { data } = await api.patch(`/documents/${id}`, updates);
   return data.data;
@@ -124,7 +130,7 @@ export const fetchStudents = async (filters?: {
 
 export const updateStudent = async (
   id: string,
-  updates: StudentUpdatePayload
+  updates: StudentUpdatePayload,
 ): Promise<Student> => {
   const { data } = await api.patch(`/students/${id}`, updates);
   return data.data;
@@ -150,7 +156,7 @@ export const createAdmin = async (payload: {
 
 export const updateAdmin = async (
   id: string,
-  updates: Partial<{ role: AdminRole; isActive: boolean; password: string }>
+  updates: Partial<{ role: AdminRole; isActive: boolean; password: string }>,
 ): Promise<AdminUser> => {
   const { data } = await api.patch(`/admins/${id}`, updates);
   return data.data;
@@ -160,20 +166,26 @@ export const deleteAdmin = async (id: string): Promise<void> => {
   await api.delete(`/admins/${id}`);
 };
 
-export const fetchStudentPoints = async (studentId: string): Promise<PointsBalance> => {
+export const fetchStudentPoints = async (
+  studentId: string,
+): Promise<PointsBalance> => {
   const { data } = await api.get(`/points/${studentId}`);
   return data.data;
 };
 
 export const fetchStudentPointsHistory = async (
   studentId: string,
-  limit = 20
+  limit = 20,
 ): Promise<PointsTransactionEntry[]> => {
-  const { data } = await api.get(`/points/${studentId}/history`, { params: { limit } });
+  const { data } = await api.get(`/points/${studentId}/history`, {
+    params: { limit },
+  });
   return data.data;
 };
 
-export const fetchStudentBadges = async (studentId: string): Promise<BadgeEntry[]> => {
+export const fetchStudentBadges = async (
+  studentId: string,
+): Promise<BadgeEntry[]> => {
   const { data } = await api.get(`/badges/${studentId}`);
   return data.data;
 };

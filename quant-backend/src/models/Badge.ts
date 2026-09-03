@@ -42,8 +42,10 @@ const badgeSchema = new Schema(
     },
     criteriaValue: { type: Number },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-export type BadgeDoc = InferSchemaType<typeof badgeSchema> & { _id: Types.ObjectId };
+export type BadgeDoc = InferSchemaType<typeof badgeSchema> & {
+  _id: Types.ObjectId;
+};
 export const Badge = model("Badge", badgeSchema);

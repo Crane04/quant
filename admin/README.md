@@ -20,8 +20,8 @@ npm run dev
 
 ## Environment Variables
 
-| Variable | Description |
-|---|---|
+| Variable       | Description                                          |
+| -------------- | ---------------------------------------------------- |
 | `VITE_API_URL` | Bot API base URL e.g. `http://localhost:3000/api/v1` |
 
 The Vite dev server proxies `/api` → `http://localhost:3000` so during development you can set `VITE_API_URL=/api/v1`.

@@ -26,7 +26,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { admin, logout } = useAuth();
   const visibleNavItems = [
     ...navItems,
-    ...(admin?.role === "super_admin" ? [{ to: "/admins", icon: Users, label: "Admins" }] : []),
+    ...(admin?.role === "super_admin"
+      ? [{ to: "/admins", icon: Users, label: "Admins" }]
+      : []),
   ];
 
   return (
@@ -70,7 +72,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {admin?.role.replace("_", " ")}
             </p>
           </div>
-          <button onClick={logout} className="btn-ghost w-full justify-start px-0 hover:bg-transparent">
+          <button
+            onClick={logout}
+            className="btn-ghost w-full justify-start px-0 hover:bg-transparent"
+          >
             <LogOut size={15} />
             Logout
           </button>
@@ -78,9 +83,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main */}
-      <main className="flex-1 overflow-y-auto bg-zinc-950">
-        {children}
-      </main>
+      <main className="flex-1 overflow-y-auto bg-zinc-950">{children}</main>
     </div>
   );
 }

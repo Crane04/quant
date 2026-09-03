@@ -38,14 +38,24 @@ const sessions = new Map<string, WaSession>();
 
 export function getWaSession(phone: string): WaSession {
   const existing = sessions.get(phone);
-  if (existing && Date.now() - existing.updatedAt < SESSION_TTL_MS) return existing;
+  if (existing && Date.now() - existing.updatedAt < SESSION_TTL_MS)
+    return existing;
 
-  const fresh: WaSession = { state: "IDLE", data: {}, messages: [], updatedAt: Date.now() };
+  const fresh: WaSession = {
+    state: "IDLE",
+    data: {},
+    messages: [],
+    updatedAt: Date.now(),
+  };
   sessions.set(phone, fresh);
   return fresh;
 }
 
-export function setWaSession(phone: string, state: WaState, data: Record<string, unknown> = {}): void {
+export function setWaSession(
+  phone: string,
+  state: WaState,
+  data: Record<string, unknown> = {},
+): void {
   const current = sessions.get(phone);
   sessions.set(phone, {
     state,
@@ -58,12 +68,23 @@ export function setWaSession(phone: string, state: WaState, data: Record<string,
 /** Appends to the agent's rolling history, trimmed to the last MAX_HISTORY_MESSAGES. */
 export function appendWaHistory(phone: string, messages: ChatMessage[]): void {
   const current = getWaSession(phone);
-  const combined = [...current.messages, ...messages].slice(-MAX_HISTORY_MESSAGES);
-  sessions.set(phone, { ...current, messages: combined, updatedAt: Date.now() });
+  const combined = [...current.messages, ...messages].slice(
+    -MAX_HISTORY_MESSAGES,
+  );
+  sessions.set(phone, {
+    ...current,
+    messages: combined,
+    updatedAt: Date.now(),
+  });
 }
 
 export function clearWaSession(phone: string): void {
-  sessions.set(phone, { state: "IDLE", data: {}, messages: [], updatedAt: Date.now() });
+  sessions.set(phone, {
+    state: "IDLE",
+    data: {},
+    messages: [],
+    updatedAt: Date.now(),
+  });
 }
 
 setInterval(() => {

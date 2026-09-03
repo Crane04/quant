@@ -10,7 +10,8 @@ export interface CourseRef {
   creditUnits: number;
 }
 
-export type DocumentCategory = "lecture_note" | "exam_summary" | "past_question" | "other";
+export type DocumentCategory =
+  "lecture_note" | "exam_summary" | "past_question" | "other";
 export type DocumentStatus = "pending" | "approved" | "rejected";
 
 export interface UploaderRef {
@@ -133,7 +134,11 @@ export interface PointsBalance {
 
 export interface PointsTransactionEntry {
   _id: string;
-  type: "document_approved" | "badge_bonus" | "reward_redeemed" | "admin_adjustment";
+  type:
+    | "document_approved"
+    | "badge_bonus"
+    | "reward_redeemed"
+    | "admin_adjustment";
   amount: number;
   balanceAfter: number;
   description: string;
