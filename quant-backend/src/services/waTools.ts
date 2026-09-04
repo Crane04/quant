@@ -356,7 +356,7 @@ export async function searchCourseMaterials(args: {
 
   if (args.courseCode) {
     const courses = await Course.find({
-      code: new RegExp(args.courseCode.replace(/\s+/g, "\\s*"), "i"),
+      code: courseCodePattern(args.courseCode),
     });
     if (courses.length === 0)
       return { found: false, message: "No matching course found." };
@@ -462,6 +462,24 @@ function isValidDay(value: string): value is (typeof DAYS_OF_WEEK)[number] {
   return (DAYS_OF_WEEK as readonly string[]).includes(value);
 }
 
+/**
+ * Matches a course code regardless of whitespace differences between how
+ * it's stored and how it was typed/spoken — "MEE 501", "MEE501", and
+ * "mee   501" all match the same course. Collapsing whitespace only in the
+ * *input* (the old approach) breaks as soon as the input and the stored
+ * code disagree on whether there's a space at all — this instead strips
+ * whitespace from the input entirely and re-inserts \s* between every
+ * character, so it matches the stored value no matter where its spacing is.
+ */
+function courseCodePattern(input: string): RegExp {
+  const chars = input.trim().replace(/\s+/g, "");
+  const escaped = chars
+    .split("")
+    .map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("\\s*");
+  return new RegExp(`^\\s*${escaped}\\s*$`, "i");
+}
+
 function capitalize(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
@@ -473,7 +491,7 @@ function describeSlot(course: CourseDoc, slot: { dayOfWeek: string; startTime: s
 
 export async function getCourseSchedule(args: { courseCode: string }) {
   const course = await Course.findOne({
-    code: new RegExp(`^${args.courseCode.trim().replace(/\s+/g, "\\s*")}$`, "i"),
+    code: courseCodePattern(args.courseCode),
   });
   if (!course) return { found: false, message: "Course not found." };
 
@@ -529,7 +547,7 @@ export async function scheduleClass(
   }
 
   const course = await Course.findOne({
-    code: new RegExp(`^${args.courseCode.trim().replace(/\s+/g, "\\s*")}$`, "i"),
+    code: courseCodePattern(args.courseCode),
     university: student.university,
   });
   if (!course) return { success: false, message: "Course not found." };
@@ -623,7 +641,7 @@ export async function subscribeToCourse(
   args: { courseCode: string },
 ) {
   const course = await Course.findOne({
-    code: new RegExp(`^${args.courseCode.trim().replace(/\s+/g, "\\s*")}$`, "i"),
+    code: courseCodePattern(args.courseCode),
     university: student.university,
   });
   if (!course) return { success: false, message: "Course not found." };
@@ -637,7 +655,7 @@ export async function unsubscribeFromCourse(
   args: { courseCode: string },
 ) {
   const course = await Course.findOne({
-    code: new RegExp(`^${args.courseCode.trim().replace(/\s+/g, "\\s*")}$`, "i"),
+    code: courseCodePattern(args.courseCode),
     university: student.university,
   });
   if (!course) return { success: false, message: "Course not found." };
@@ -881,9 +899,9 @@ export async function enrollInCourses(
   student: StudentDoc,
   args: { semester: "first" | "second"; courseCodes: string[] },
 ) {
-  const codes = args.courseCodes.map((c) => c.trim().toUpperCase());
+  const codes = args.courseCodes.map((c) => c.trim());
   const courses = await Course.find({
-    code: { $in: codes },
+    $or: codes.map((c) => ({ code: courseCodePattern(c) })),
     university: student.university,
   });
 
@@ -915,7 +933,11 @@ export async function enrollInCourses(
   );
 
   const foundCodes = courses.map((c) => c.code);
-  const notFound = codes.filter((c) => !foundCodes.includes(c));
+  // Compare whitespace-stripped so a match found via courseCodePattern (e.g.
+  // input "MEE501" against stored "MEE 501") isn't wrongly reported as not found.
+  const normalize = (s: string) => s.replace(/\s+/g, "").toUpperCase();
+  const foundNormalized = new Set(foundCodes.map(normalize));
+  const notFound = codes.filter((c) => !foundNormalized.has(normalize(c)));
 
   return { success: true, enrolled: foundCodes, notFound };
 }
@@ -930,10 +952,7 @@ export async function recordGrade(
   },
 ) {
   const course = await Course.findOne({
-    code: new RegExp(
-      `^${args.courseCode.trim().replace(/\s+/g, "\\s*")}$`,
-      "i",
-    ),
+    code: courseCodePattern(args.courseCode),
     university: student.university,
   });
   if (!course)
