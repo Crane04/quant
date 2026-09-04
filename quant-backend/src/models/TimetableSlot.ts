@@ -19,6 +19,10 @@ const timetableSlotSchema = new Schema(
     startTime: { type: String, required: true }, // "09:00" (24h)
     endTime: { type: String, required: true }, // "11:00"
     venue: { type: String, trim: true },
+    // When the "starts in 10 minutes" reminder last fired for this slot — this
+    // recurs weekly, so it's a cooldown marker (re-armed after ~a day), not a
+    // one-time flag like Assignment's reminderSentAt.
+    lastReminderSentAt: { type: Date },
   },
   { timestamps: true },
 );
