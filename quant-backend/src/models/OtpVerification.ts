@@ -6,7 +6,7 @@ const otpVerificationSchema = new Schema(
     channel: { type: String, enum: ["phone", "email"], required: true },
     purpose: {
       type: String,
-      enum: ["registration", "email_verification"],
+      enum: ["registration", "email_verification", "password_reset"],
       required: true,
     },
     codeHash: { type: String, required: true },

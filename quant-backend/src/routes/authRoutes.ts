@@ -8,6 +8,8 @@ import {
   verifyPhoneSchema,
   verifyEmailSchema,
   loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from "../validators/authValidators";
 
 const router = Router();
@@ -184,5 +186,62 @@ router.post(
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
 router.post("/logout", authenticate, authController.logout);
+
+/**
+ * @openapi
+ * /auth/forgot-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Request a password-reset code by email
+ *     description: >
+ *       Always responds the same way whether or not the email is registered,
+ *       so it can't be used to enumerate accounts.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string, format: email }
+ *     responses:
+ *       200: { description: Reset code sent if the account exists, content: { application/json: { schema: { $ref: '#/components/schemas/SuccessMessage' } } } }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ */
+router.post(
+  "/forgot-password",
+  validate({ body: forgotPasswordSchema }),
+  authController.forgotPassword,
+);
+
+/**
+ * @openapi
+ * /auth/reset-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Reset a student's password with the code sent to their email
+ *     description: Revokes all existing sessions for the account once the password is reset.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, code, newPassword]
+ *             properties:
+ *               email: { type: string, format: email }
+ *               code: { type: string, example: "123456" }
+ *               newPassword: { type: string, format: password, minLength: 6 }
+ *     responses:
+ *       200: { description: Password reset, content: { application/json: { schema: { $ref: '#/components/schemas/SuccessMessage' } } } }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.post(
+  "/reset-password",
+  validate({ body: resetPasswordSchema }),
+  authController.resetPassword,
+);
 
 export default router;

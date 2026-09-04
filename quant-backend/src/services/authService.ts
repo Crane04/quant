@@ -8,6 +8,7 @@ import {
 } from "../utils/session";
 import { issueOtp, verifyOtp } from "./otpService";
 import { hashPassword, verifyPassword } from "../utils/password";
+import { logger } from "../utils/logger";
 
 export interface StudentSessionPayload {
   sub: string;
@@ -107,6 +108,43 @@ export async function login(email: string, password: string) {
   await student.save();
 
   return issueSessionToken(student);
+}
+
+// Doesn't reveal whether the email is registered — always resolves the same
+// way, so a caller can't use this to enumerate accounts.
+export async function requestPasswordReset(email: string): Promise<void> {
+  const student = await Student.findOne({ email: email.toLowerCase().trim() });
+  if (!student) return;
+
+  // Swallow send failures here — letting one propagate would 500 the endpoint
+  // only when the email genuinely exists, which defeats the point of always
+  // responding identically regardless of whether the account is real.
+  try {
+    await issueOtp(student.email, "email", "password_reset");
+  } catch (err) {
+    logger.error("Failed to send password-reset email", {
+      email: student.email,
+      error: err instanceof Error ? err.message : "unknown",
+    });
+  }
+}
+
+export async function resetPassword(
+  email: string,
+  code: string,
+  newPassword: string,
+): Promise<void> {
+  await verifyOtp(email, "password_reset", code);
+
+  const student = await Student.findOne({ email: email.toLowerCase().trim() });
+  if (!student) throw ApiError.notFound("Student not found");
+
+  student.passwordHash = await hashPassword(newPassword);
+  await student.save();
+
+  // A password reset is a good moment to force re-login everywhere, in case the
+  // reset was prompted by a compromised account.
+  await revokeActorSessions("Student", student._id.toString());
 }
 
 export async function issueSessionToken(student: StudentDoc) {

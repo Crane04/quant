@@ -32,3 +32,25 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
   await authService.revokeAllSessions(req.student!.sub);
   sendSuccess(res, undefined, "Logged out of all sessions");
 });
+
+export const forgotPassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    await authService.requestPasswordReset(req.body.email);
+    sendSuccess(
+      res,
+      undefined,
+      "If an account exists for that email, a reset code has been sent.",
+    );
+  },
+);
+
+export const resetPassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    await authService.resetPassword(
+      req.body.email,
+      req.body.code,
+      req.body.newPassword,
+    );
+    sendSuccess(res, undefined, "Password reset. Log in with your new password.");
+  },
+);
