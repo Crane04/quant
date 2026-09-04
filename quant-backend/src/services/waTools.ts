@@ -515,10 +515,23 @@ export async function getCourseSchedule(args: { courseCode: string }) {
 
 // HOCs can only manage the schedule for their own class — a write action with
 // real consequences (it notifies people), unlike the deliberately-open search.
+// Loose equality for free-text org names ("Mech" vs "Mechanical Engineering")
+// — case-insensitive, true if either side contains the other. This is a
+// stopgap, not a real fix: department/university are free text with no
+// canonical form anywhere in the system, so this only catches the
+// abbreviation-as-prefix/substring case, not e.g. acronym mismatches
+// ("LASU" vs "Lagos State University").
+function looseOrgMatch(a: string, b: string): boolean {
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  const x = norm(a);
+  const y = norm(b);
+  return x === y || x.includes(y) || y.includes(x);
+}
+
 function assertOwnClass(student: StudentDoc, course: CourseDoc): string | null {
   if (
-    course.university !== student.university ||
-    course.department !== student.department ||
+    !looseOrgMatch(course.university, student.university) ||
+    !looseOrgMatch(course.department, student.department) ||
     course.level !== student.level
   ) {
     return "You can only manage the schedule for your own class.";
