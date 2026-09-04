@@ -146,6 +146,7 @@ router.get("/:id", requireAdminAuth, studentController.getStudentById);
  *               level: { type: string }
  *               isAmbassador: { type: boolean, description: "Grants web portal login + document upload rights" }
  *               isVerifiedContributor: { type: boolean, description: "Quality-review flag; unlocks the Verified Contributor badge" }
+ *               isHOC: { type: boolean, description: "Head of Class — can schedule/edit/cancel classes via the WhatsApp bot" }
  *     responses:
  *       200:
  *         description: Updated student

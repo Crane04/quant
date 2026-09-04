@@ -1,11 +1,15 @@
 import { Types } from "mongoose";
-import { StudentDoc } from "../models/Student";
-import { Course } from "../models/Course";
+import { Student, StudentDoc } from "../models/Student";
+import { Course, CourseDoc } from "../models/Course";
 import { StudentCourse } from "../models/StudentCourse";
 import { DocumentFile } from "../models/DocumentFile";
 import { TimetableSlot } from "../models/TimetableSlot";
 import { Assignment } from "../models/Assignment";
 import { GradeRecord, GRADE_POINTS } from "../models/GradeRecord";
+import {
+  notifySubscribers,
+  setSubscription,
+} from "./courseSubscriptionService";
 
 /** JSON-schema tool definitions in Groq/OpenAI's function-calling format. */
 export const TOOL_DEFINITIONS = [
@@ -56,6 +60,126 @@ export const TOOL_DEFINITIONS = [
       description:
         "Get the student's weekly class timetable, based on their most recent course enrollment.",
       parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_course_schedule",
+      description:
+        "Look up a course's current weekly class schedule, with an id for each slot. Call this " +
+        "before update_class_schedule or cancel_class to find the slot id.",
+      parameters: {
+        type: "object",
+        properties: { courseCode: { type: "string" } },
+        required: ["courseCode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "schedule_class",
+      description:
+        "HOC-only. Add a new weekly class time for a course, and notify students subscribed to " +
+        "that course. Only works for the HOC's own class (university/department/level).",
+      parameters: {
+        type: "object",
+        properties: {
+          courseCode: { type: "string" },
+          dayOfWeek: {
+            type: "string",
+            enum: [
+              "monday",
+              "tuesday",
+              "wednesday",
+              "thursday",
+              "friday",
+              "saturday",
+              "sunday",
+            ],
+          },
+          startTime: { type: "string", description: "24h HH:MM, e.g. '09:00'" },
+          endTime: { type: "string", description: "24h HH:MM, e.g. '11:00'" },
+          venue: { type: "string" },
+        },
+        required: ["courseCode", "dayOfWeek", "startTime", "endTime"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_class_schedule",
+      description:
+        "HOC-only. Edit an existing class time slot (by id, from get_course_schedule) — e.g. a " +
+        "venue or time change — and notify subscribed students of the update.",
+      parameters: {
+        type: "object",
+        properties: {
+          slotId: { type: "string" },
+          dayOfWeek: {
+            type: "string",
+            enum: [
+              "monday",
+              "tuesday",
+              "wednesday",
+              "thursday",
+              "friday",
+              "saturday",
+              "sunday",
+            ],
+          },
+          startTime: { type: "string" },
+          endTime: { type: "string" },
+          venue: { type: "string" },
+        },
+        required: ["slotId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cancel_class",
+      description:
+        "HOC-only. Remove a class time slot (by id, from get_course_schedule) — e.g. a cancelled " +
+        "lecture — and notify subscribed students.",
+      parameters: {
+        type: "object",
+        properties: { slotId: { type: "string" } },
+        required: ["slotId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "subscribe_to_course",
+      description:
+        "Subscribe the student to WhatsApp notifications for a course's schedule changes " +
+        "(new classes, time/venue updates, cancellations). Students are subscribed by default " +
+        "to courses matching their own class — this is mainly for courses outside it " +
+        "(carryovers, borrowed courses).",
+      parameters: {
+        type: "object",
+        properties: { courseCode: { type: "string" } },
+        required: ["courseCode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "unsubscribe_from_course",
+      description:
+        "Stop notifications for a course's schedule changes — including for a course in the " +
+        "student's own class, which they're otherwise subscribed to by default.",
+      parameters: {
+        type: "object",
+        properties: { courseCode: { type: "string" } },
+        required: ["courseCode"],
+      },
     },
   },
   {
@@ -115,8 +239,28 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: "get_cgpa",
       description:
-        "Get the student's cumulative GPA and a per-semester breakdown, from their recorded grades.",
+        "Get the student's cumulative GPA and a per-semester breakdown, from their recorded " +
+        "grades. If they've set a CGPA target, this also returns their progress toward it — " +
+        "the GPA they need to maintain each remaining semester, and whether that's achieved/on " +
+        "track/unrealistic.",
       parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_cgpa_target",
+      description:
+        "Set the student's target CGPA (0-5 scale) and get back what GPA they'll need to " +
+        "maintain each remaining semester to hit it. Requires at least one semester of grades " +
+        "already recorded via record_grade — ask them to record grades first if they have none.",
+      parameters: {
+        type: "object",
+        properties: {
+          targetCgpa: { type: "number", minimum: 0, maximum: 5 },
+        },
+        required: ["targetCgpa"],
+      },
     },
   },
   {
@@ -170,6 +314,15 @@ export const TOOL_DEFINITIONS = [
   },
 ] as const;
 
+// Only offered to students with isHOC set — filtered out of the tool list for
+// everyone else, see buildToolDefinitions in waConversationService.ts. The
+// executeTool functions also re-check isHOC themselves as defense in depth.
+export const HOC_ONLY_TOOLS = new Set([
+  "schedule_class",
+  "update_class_schedule",
+  "cancel_class",
+]);
+
 // Nigerian academic sessions run roughly September through July/August — derived from
 // the current date instead of asking the student, since it's unambiguous either way.
 function getCurrentSession(date: Date = new Date()): string {
@@ -195,6 +348,10 @@ export async function searchCourseMaterials(args: {
   courseCode?: string;
   topic?: string;
 }) {
+  // Deliberately not scoped to the student's own (university, department, level) —
+  // students can be taking a course outside their own class (carryovers, borrowed
+  // courses), and there's no course-registration system yet to know what someone
+  // is actually enrolled in beyond their base profile fields.
   let courseIds: Types.ObjectId[] | undefined;
 
   if (args.courseCode) {
@@ -280,6 +437,7 @@ export async function getTimetable(student: StudentDoc) {
     session: period.session,
     semester: period.semester,
     slots: slots.map((s) => ({
+      id: s._id.toString(),
       courseCode: (s.course as unknown as { code: string }).code,
       dayOfWeek: s.dayOfWeek,
       startTime: s.startTime,
@@ -287,6 +445,205 @@ export async function getTimetable(student: StudentDoc) {
       venue: s.venue,
     })),
   };
+}
+
+const DAYS_OF_WEEK = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
+const TIME_FORMAT = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function isValidDay(value: string): value is (typeof DAYS_OF_WEEK)[number] {
+  return (DAYS_OF_WEEK as readonly string[]).includes(value);
+}
+
+function capitalize(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+function describeSlot(course: CourseDoc, slot: { dayOfWeek: string; startTime: string; endTime: string; venue?: string | null }): string {
+  const venue = slot.venue ? ` at ${slot.venue}` : "";
+  return `*${course.code}* — ${capitalize(slot.dayOfWeek)} ${slot.startTime}-${slot.endTime}${venue}`;
+}
+
+export async function getCourseSchedule(args: { courseCode: string }) {
+  const course = await Course.findOne({
+    code: new RegExp(`^${args.courseCode.trim().replace(/\s+/g, "\\s*")}$`, "i"),
+  });
+  if (!course) return { found: false, message: "Course not found." };
+
+  const slots = await TimetableSlot.find({ course: course._id }).sort({
+    dayOfWeek: 1,
+    startTime: 1,
+  });
+
+  return {
+    found: true,
+    courseCode: course.code,
+    slots: slots.map((s) => ({
+      id: s._id.toString(),
+      dayOfWeek: s.dayOfWeek,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      venue: s.venue,
+    })),
+  };
+}
+
+// HOCs can only manage the schedule for their own class — a write action with
+// real consequences (it notifies people), unlike the deliberately-open search.
+function assertOwnClass(student: StudentDoc, course: CourseDoc): string | null {
+  if (
+    course.university !== student.university ||
+    course.department !== student.department ||
+    course.level !== student.level
+  ) {
+    return "You can only manage the schedule for your own class.";
+  }
+  return null;
+}
+
+export async function scheduleClass(
+  student: StudentDoc,
+  args: {
+    courseCode: string;
+    dayOfWeek: string;
+    startTime: string;
+    endTime: string;
+    venue?: string;
+  },
+) {
+  if (!student.isHOC)
+    return { success: false, message: "Only HOCs can schedule classes." };
+
+  if (!isValidDay(args.dayOfWeek.toLowerCase())) {
+    return { success: false, message: "Invalid day of week." };
+  }
+  if (!TIME_FORMAT.test(args.startTime) || !TIME_FORMAT.test(args.endTime)) {
+    return { success: false, message: "Times must be 24h HH:MM, e.g. '09:00'." };
+  }
+
+  const course = await Course.findOne({
+    code: new RegExp(`^${args.courseCode.trim().replace(/\s+/g, "\\s*")}$`, "i"),
+    university: student.university,
+  });
+  if (!course) return { success: false, message: "Course not found." };
+
+  const scopeError = assertOwnClass(student, course);
+  if (scopeError) return { success: false, message: scopeError };
+
+  const slot = await TimetableSlot.create({
+    course: course._id,
+    dayOfWeek: args.dayOfWeek.toLowerCase(),
+    startTime: args.startTime,
+    endTime: args.endTime,
+    venue: args.venue,
+  });
+
+  await notifySubscribers(
+    course,
+    `📅 New class scheduled: ${describeSlot(course, slot)}`,
+  );
+
+  return { success: true, id: slot._id.toString() };
+}
+
+export async function updateClassSchedule(
+  student: StudentDoc,
+  args: {
+    slotId: string;
+    dayOfWeek?: string;
+    startTime?: string;
+    endTime?: string;
+    venue?: string;
+  },
+) {
+  if (!student.isHOC)
+    return { success: false, message: "Only HOCs can update the class schedule." };
+
+  if (args.dayOfWeek && !isValidDay(args.dayOfWeek.toLowerCase())) {
+    return { success: false, message: "Invalid day of week." };
+  }
+  if (
+    (args.startTime && !TIME_FORMAT.test(args.startTime)) ||
+    (args.endTime && !TIME_FORMAT.test(args.endTime))
+  ) {
+    return { success: false, message: "Times must be 24h HH:MM, e.g. '09:00'." };
+  }
+
+  const slot = await TimetableSlot.findById(args.slotId).populate("course");
+  if (!slot)
+    return { success: false, message: "Class schedule entry not found." };
+
+  const course = slot.course as unknown as CourseDoc;
+  const scopeError = assertOwnClass(student, course);
+  if (scopeError) return { success: false, message: scopeError };
+
+  if (args.dayOfWeek)
+    slot.dayOfWeek = args.dayOfWeek.toLowerCase() as (typeof DAYS_OF_WEEK)[number];
+  if (args.startTime) slot.startTime = args.startTime;
+  if (args.endTime) slot.endTime = args.endTime;
+  if (args.venue !== undefined) slot.venue = args.venue;
+  await slot.save();
+
+  await notifySubscribers(course, `🔄 Class updated: ${describeSlot(course, slot)}`);
+
+  return { success: true };
+}
+
+export async function cancelClass(student: StudentDoc, args: { slotId: string }) {
+  if (!student.isHOC)
+    return { success: false, message: "Only HOCs can cancel classes." };
+
+  const slot = await TimetableSlot.findById(args.slotId).populate("course");
+  if (!slot)
+    return { success: false, message: "Class schedule entry not found." };
+
+  const course = slot.course as unknown as CourseDoc;
+  const scopeError = assertOwnClass(student, course);
+  if (scopeError) return { success: false, message: scopeError };
+
+  await TimetableSlot.findByIdAndDelete(args.slotId);
+
+  await notifySubscribers(
+    course,
+    `❌ Class cancelled: ${describeSlot(course, slot)} has been removed from the schedule.`,
+  );
+
+  return { success: true };
+}
+
+export async function subscribeToCourse(
+  student: StudentDoc,
+  args: { courseCode: string },
+) {
+  const course = await Course.findOne({
+    code: new RegExp(`^${args.courseCode.trim().replace(/\s+/g, "\\s*")}$`, "i"),
+    university: student.university,
+  });
+  if (!course) return { success: false, message: "Course not found." };
+
+  await setSubscription(student._id, course._id, true);
+  return { success: true, courseCode: course.code, subscribed: true };
+}
+
+export async function unsubscribeFromCourse(
+  student: StudentDoc,
+  args: { courseCode: string },
+) {
+  const course = await Course.findOne({
+    code: new RegExp(`^${args.courseCode.trim().replace(/\s+/g, "\\s*")}$`, "i"),
+    university: student.university,
+  });
+  if (!course) return { success: false, message: "Course not found." };
+
+  await setSubscription(student._id, course._id, false);
+  return { success: true, courseCode: course.code, subscribed: false };
 }
 
 export async function saveAssignment(
@@ -336,6 +693,74 @@ export async function markAssignmentDone(
   return { success: true };
 }
 
+// 5 levels (100-500) x 2 semesters — matches the level enum used everywhere
+// else in this system (registration, enrollment). LASU Engineering's "all
+// programs are 5-year" note is already consistent with this: 500 is already
+// the terminal level system-wide, no separate program-length concept needed.
+const TOTAL_PROGRAM_SEMESTERS = 10;
+
+interface CgpaSnapshot {
+  cumulativePoints: number;
+  cumulativeUnits: number;
+  semestersRecorded: number;
+}
+
+/**
+ * Projects the GPA required in each remaining semester to hit a target CGPA
+ * by graduation, using the student's own historical average credit load to
+ * estimate future units (we have no way to know their actual future course
+ * load). `status` is "achieved" if they're already there, "unrealistic" if
+ * the required GPA exceeds the maximum possible (5.0) or no semesters are
+ * left, "on_track" otherwise.
+ */
+function projectCgpaTarget(snapshot: CgpaSnapshot, targetCgpa: number) {
+  const { cumulativePoints, cumulativeUnits, semestersRecorded } = snapshot;
+  const currentCgpa = cumulativeUnits ? cumulativePoints / cumulativeUnits : 0;
+  const remainingSemesters = Math.max(
+    TOTAL_PROGRAM_SEMESTERS - semestersRecorded,
+    0,
+  );
+
+  // Already there — regardless of how many semesters are left, don't tell them
+  // they need to "maintain" some lower GPA to hit a target they've already cleared.
+  if (currentCgpa >= targetCgpa) {
+    return {
+      remainingSemesters,
+      requiredGpaPerSemester: null,
+      status: "achieved",
+    } as const;
+  }
+
+  if (remainingSemesters === 0) {
+    return {
+      remainingSemesters: 0,
+      requiredGpaPerSemester: null,
+      status: "unrealistic",
+    } as const;
+  }
+
+  // Fallback only matters if a target somehow exists with zero recorded
+  // grades (set_cgpa_target itself won't allow that) — a plausible average load.
+  const avgUnitsPerSemester =
+    semestersRecorded > 0 ? cumulativeUnits / semestersRecorded : 15;
+  const projectedRemainingUnits = avgUnitsPerSemester * remainingSemesters;
+  const requiredRemainingPoints =
+    targetCgpa * (cumulativeUnits + projectedRemainingUnits) -
+    cumulativePoints;
+  const requiredGpaPerSemester =
+    requiredRemainingPoints / projectedRemainingUnits;
+
+  const status = requiredGpaPerSemester <= 5 ? "on_track" : "unrealistic";
+
+  return {
+    remainingSemesters,
+    requiredGpaPerSemester: Number(
+      Math.max(requiredGpaPerSemester, 0).toFixed(2),
+    ),
+    status,
+  } as const;
+}
+
 export async function getCgpa(student: StudentDoc) {
   const records = await GradeRecord.find({ student: student._id }).populate(
     "course",
@@ -358,6 +783,21 @@ export async function getCgpa(student: StudentDoc) {
     cumulativeUnits += r.creditUnits;
   }
 
+  const target =
+    student.targetCgpa != null
+      ? {
+          targetCgpa: student.targetCgpa,
+          ...projectCgpaTarget(
+            {
+              cumulativePoints,
+              cumulativeUnits,
+              semestersRecorded: bySemester.size,
+            },
+            student.targetCgpa,
+          ),
+        }
+      : null;
+
   return {
     hasGrades: records.length > 0,
     cgpa: cumulativeUnits
@@ -370,6 +810,57 @@ export async function getCgpa(student: StudentDoc) {
       gpa: v.totalUnits ? Number((v.totalPoints / v.totalUnits).toFixed(2)) : 0,
       totalUnits: v.totalUnits,
     })),
+    target,
+  };
+}
+
+export async function setCgpaTarget(
+  student: StudentDoc,
+  args: { targetCgpa: number },
+) {
+  if (args.targetCgpa < 0 || args.targetCgpa > 5) {
+    return { success: false, message: "CGPA target must be between 0 and 5." };
+  }
+
+  const records = await GradeRecord.find({ student: student._id });
+  if (records.length === 0) {
+    return {
+      success: false,
+      message:
+        "No grades recorded yet — record at least one semester's grades first so I have something to project from.",
+    };
+  }
+
+  const bySemester = new Set<string>();
+  let cumulativePoints = 0;
+  let cumulativeUnits = 0;
+  for (const r of records) {
+    bySemester.add(`${r.session} - ${r.semester}`);
+    cumulativePoints += (r.gradePoint ?? 0) * r.creditUnits;
+    cumulativeUnits += r.creditUnits;
+  }
+
+  await Student.updateOne(
+    { _id: student._id },
+    { targetCgpa: args.targetCgpa },
+  );
+  // Also mutate the in-memory object passed in — updateOne only touches the DB,
+  // and this same `student` may be reused by a later get_cgpa call in the same
+  // conversation turn, which would otherwise see the stale pre-update value.
+  student.targetCgpa = args.targetCgpa;
+
+  const projection = projectCgpaTarget(
+    { cumulativePoints, cumulativeUnits, semestersRecorded: bySemester.size },
+    args.targetCgpa,
+  );
+
+  return {
+    success: true,
+    currentCgpa: cumulativeUnits
+      ? Number((cumulativePoints / cumulativeUnits).toFixed(2))
+      : 0,
+    targetCgpa: args.targetCgpa,
+    ...projection,
   };
 }
 
@@ -486,6 +977,36 @@ export async function executeTool(
       return getDocumentLink(args as { documentId: string });
     case "get_timetable":
       return getTimetable(student);
+    case "get_course_schedule":
+      return getCourseSchedule(args as { courseCode: string });
+    case "schedule_class":
+      return scheduleClass(
+        student,
+        args as {
+          courseCode: string;
+          dayOfWeek: string;
+          startTime: string;
+          endTime: string;
+          venue?: string;
+        },
+      );
+    case "update_class_schedule":
+      return updateClassSchedule(
+        student,
+        args as {
+          slotId: string;
+          dayOfWeek?: string;
+          startTime?: string;
+          endTime?: string;
+          venue?: string;
+        },
+      );
+    case "cancel_class":
+      return cancelClass(student, args as { slotId: string });
+    case "subscribe_to_course":
+      return subscribeToCourse(student, args as { courseCode: string });
+    case "unsubscribe_from_course":
+      return unsubscribeFromCourse(student, args as { courseCode: string });
     case "save_assignment":
       return saveAssignment(
         student,
@@ -497,6 +1018,8 @@ export async function executeTool(
       return markAssignmentDone(student, args as { assignmentId: string });
     case "get_cgpa":
       return getCgpa(student);
+    case "set_cgpa_target":
+      return setCgpaTarget(student, args as { targetCgpa: number });
     case "get_profile":
       return getProfile(student);
     case "enroll_in_courses":

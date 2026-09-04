@@ -2,6 +2,7 @@ export * from "./Student";
 export * from "./OtpVerification";
 export * from "./Course";
 export * from "./StudentCourse";
+export * from "./CourseSubscription";
 export * from "./TimetableSlot";
 export * from "./Assignment";
 export * from "./LectureSummary";

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { resolveStudentContext } from "../middleware/resolveStudentContext";
-import { requireAmbassador } from "../middleware/requireAmbassador";
+import { requireBotApiKey } from "../middleware/requireBotApiKey";
 import { validate } from "../middleware/validate";
 import * as timetableController from "../controllers/timetableController";
 import {
@@ -66,11 +66,11 @@ router.get("/course/:courseId", timetableController.getCourseTimetable);
  * /timetable:
  *   post:
  *     tags: [Timetable]
- *     summary: Create a timetable slot (HOC Hub, ambassadors only)
+ *     summary: Create a timetable slot (trusted service)
  *     description: >
- *       The course must belong to the creating ambassador's own (university,
- *       department, level) — an HOC can only manage their own class's timetable.
- *     security: [{ studentSession: [] }, { botServiceKey: [] }]
+ *       Scheduling now happens on the WhatsApp bot (HOC-only there) — this
+ *       trusted-service route is kept for ops/import tooling, not general use.
+ *     security: [{ botServiceKey: [] }]
  *     requestBody:
  *       required: true
  *       content:
@@ -100,8 +100,7 @@ router.get("/course/:courseId", timetableController.getCourseTimetable);
  */
 router.post(
   "/",
-  resolveStudentContext,
-  requireAmbassador,
+  requireBotApiKey,
   validate({ body: createSlotSchema }),
   timetableController.createSlot,
 );
@@ -111,8 +110,8 @@ router.post(
  * /timetable/{id}:
  *   patch:
  *     tags: [Timetable]
- *     summary: Update a timetable slot (HOC Hub, ambassadors only)
- *     security: [{ studentSession: [] }, { botServiceKey: [] }]
+ *     summary: Update a timetable slot (trusted service)
+ *     security: [{ botServiceKey: [] }]
  *     parameters:
  *       - { name: id, in: path, required: true, schema: { type: string } }
  *     responses:
@@ -131,8 +130,7 @@ router.post(
  */
 router.patch(
   "/:id",
-  resolveStudentContext,
-  requireAmbassador,
+  requireBotApiKey,
   validate({ body: updateSlotSchema }),
   timetableController.updateSlot,
 );
@@ -142,8 +140,8 @@ router.patch(
  * /timetable/{id}:
  *   delete:
  *     tags: [Timetable]
- *     summary: Delete a timetable slot (HOC Hub, ambassadors only)
- *     security: [{ studentSession: [] }, { botServiceKey: [] }]
+ *     summary: Delete a timetable slot (trusted service)
+ *     security: [{ botServiceKey: [] }]
  *     parameters:
  *       - { name: id, in: path, required: true, schema: { type: string } }
  *     responses:
@@ -152,11 +150,6 @@ router.patch(
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-router.delete(
-  "/:id",
-  resolveStudentContext,
-  requireAmbassador,
-  timetableController.deleteSlot,
-);
+router.delete("/:id", requireBotApiKey, timetableController.deleteSlot);
 
 export default router;

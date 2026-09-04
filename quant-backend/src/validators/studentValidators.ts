@@ -8,10 +8,11 @@ export const updateMeSchema = z.object({
 });
 
 // Admin-only fields layered on top of the self-service update — isAmbassador/
-// isVerifiedContributor must never be settable via a student's own PATCH /students/me.
+// isVerifiedContributor/isHOC must never be settable via a student's own PATCH /students/me.
 export const adminUpdateStudentSchema = updateMeSchema.extend({
   isAmbassador: z.boolean().optional(),
   isVerifiedContributor: z.boolean().optional(),
+  isHOC: z.boolean().optional(),
 });
 
 export const listStudentsQuerySchema = z.object({

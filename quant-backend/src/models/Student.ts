@@ -37,6 +37,11 @@ const studentSchema = new Schema(
     // (and, by extension, upload documents there) — set by an admin.
     isAmbassador: { type: Boolean, default: false },
 
+    // Head of Class — separate from isAmbassador. HOCs can schedule/edit/cancel
+    // classes via the WhatsApp bot, which notifies students subscribed to that
+    // course. Set by an admin.
+    isHOC: { type: Boolean, default: false },
+
     // Gamification. `points` is the spendable/leaderboard balance (drops on reward
     // redemption); `lifetimePointsEarned` only ever goes up, so points-based badge
     // thresholds (e.g. Scholar Elite) survive later spending.
@@ -52,6 +57,11 @@ const studentSchema = new Schema(
     isVerifiedContributor: { type: Boolean, default: false },
 
     lastSeenAt: { type: Date },
+
+    // CGPA Intelligence System — the goal the student set for themselves
+    // (5.0 scale, matching GRADE_POINTS). Predictive math derives from this
+    // plus their actual recorded GradeRecord entries.
+    targetCgpa: { type: Number, min: 0, max: 5 },
 
     // Captured at signup (WhatsApp Flow "Referral Code" field), no attribution
     // logic on it yet — kept so real signup data isn't silently discarded.

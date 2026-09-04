@@ -16,7 +16,7 @@ import {
   WaState,
 } from "./waSession";
 import { completeChat, completeJson, ChatMessage } from "./groqAgentService";
-import { TOOL_DEFINITIONS, executeTool } from "./waTools";
+import { TOOL_DEFINITIONS, HOC_ONLY_TOOLS, executeTool } from "./waTools";
 import { createRegistrationToken } from "./registrationTokenService";
 import { logger } from "../utils/logger";
 import { env } from "../config/env";
@@ -41,6 +41,7 @@ function buildSystemPrompt(student: StudentDoc): string {
 - University: ${student.university}
 - Department: ${student.department}
 - Level: ${student.level}
+- HOC (Head of Class): ${student.isHOC ? "yes — can schedule/edit/cancel classes" : "no"}
 Today's date: ${new Date().toISOString().slice(0, 10)}
 
 Use the available tools to answer instead of guessing — never invent course material, grades,
@@ -66,6 +67,23 @@ for the academic session — it's derived automatically from today's date.
 save_assignment is a personal reminder, not tied to enrollment: never check whether the student is
 enrolled in the course, and never say a course "isn't in the system" — just save whatever they tell
 you, formatted, even if the course code is unfamiliar.
+
+set_cgpa_target and get_cgpa return a target "status" — phrase your reply to match it, don't just
+recite the number: "achieved" means congratulate them, it's already met; "on_track" means state the
+required GPA plainly and encouragingly; "unrealistic" means gently say the target may be a stretch
+given where they stand and suggest a more achievable one, without being discouraging — never just
+refuse to set it.
+
+Students are subscribed by default to notifications for courses matching their own class, and can
+subscribe_to_course/unsubscribe_from_course to change that (mainly useful for a carryover or
+borrowed course outside their own class, or to quiet a course they don't care about). Only mention
+subscriptions if the student asks about notifications or a class they're not getting alerts for —
+don't bring it up unprompted.
+
+schedule_class, update_class_schedule, and cancel_class are HOC-only — only offered if the chat
+profile above says they're a HOC. Look up the course's current slots with get_course_schedule first
+if you need a slot id for an edit or cancellation. Scheduling a class notifies subscribed students
+automatically — don't tell the student to notify anyone separately.
 
 Keep replies short and WhatsApp-appropriate: plain text, *single asterisks* for bold, no markdown
 tables or headers, no long paragraphs.`;
@@ -153,6 +171,14 @@ async function processIncomingMessageInner(
   await runAgent(from, student, input);
 }
 
+// HOC-only tools (schedule/edit/cancel a class) are only offered to HOCs —
+// the model never even sees them as an option otherwise. executeTool re-checks
+// isHOC itself too, as defense in depth.
+function buildToolDefinitions(student: StudentDoc) {
+  if (student.isHOC) return TOOL_DEFINITIONS;
+  return TOOL_DEFINITIONS.filter((t) => !HOC_ONLY_TOOLS.has(t.function.name));
+}
+
 async function runAgent(
   from: string,
   student: StudentDoc,
@@ -165,13 +191,15 @@ async function runAgent(
     { role: "user", content: input },
   ];
 
+  const tools = buildToolDefinitions(student);
+
   let finalReply: string | null = null;
   // Documents are sent as real attachments the moment the tool resolves them — never
   // routed through the model's own text, so it can't mistype a link or an id.
   const sentFileUrls = new Set<string>();
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-    const message = await completeChat(turn, TOOL_DEFINITIONS);
+    const message = await completeChat(turn, tools);
     if (!message) break;
 
     if (message.tool_calls && message.tool_calls.length > 0) {
