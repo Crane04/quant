@@ -95,6 +95,36 @@ export const fetchCourses = async (filters?: {
   return data;
 };
 
+export type CoursePayload = {
+  code: string;
+  title: string;
+  university: string;
+  department: string;
+  level: string;
+  session: string;
+  semester: "first" | "second";
+  creditUnits: number;
+};
+
+export const createCourse = async (
+  payload: CoursePayload,
+): Promise<CourseRef> => {
+  const { data } = await api.post("/courses", payload);
+  return data.data;
+};
+
+export const updateCourse = async (
+  id: string,
+  updates: Partial<CoursePayload>,
+): Promise<CourseRef> => {
+  const { data } = await api.patch(`/courses/${id}`, updates);
+  return data.data;
+};
+
+export const deleteCourse = async (id: string): Promise<void> => {
+  await api.delete(`/courses/${id}`);
+};
+
 export const uploadDocument = async (
   file: File,
   payload: UploadPayload,

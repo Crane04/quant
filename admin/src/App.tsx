@@ -7,6 +7,7 @@ import LoginPage from "./pages/LoginPage";
 import OverviewPage from "./pages/OverviewPage";
 import UploadPage from "./pages/UploadPage";
 import DocumentsPage from "./pages/DocumentsPage";
+import CoursesPage from "./pages/CoursesPage";
 import AdminsPage from "./pages/AdminsPage";
 import StudentsPage from "./pages/StudentsPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
@@ -28,6 +29,7 @@ function ProtectedApp() {
         <Route path="/" element={<OverviewPage />} />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
+        <Route path="/courses" element={<CoursesPage />} />
         <Route path="/students" element={<StudentsPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/rewards" element={<RewardsPage />} />
