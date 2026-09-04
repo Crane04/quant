@@ -79,6 +79,7 @@ export interface Student {
   isEmailVerified: boolean;
   isAmbassador: boolean;
   isVerifiedContributor: boolean;
+  isHOC: boolean;
   points: number;
   tokens: number;
   createdAt: string;
@@ -96,6 +97,7 @@ export type StudentUpdatePayload = Partial<{
   level: string;
   isAmbassador: boolean;
   isVerifiedContributor: boolean;
+  isHOC: boolean;
 }>;
 
 export type AdminRole = "super_admin" | "admin";

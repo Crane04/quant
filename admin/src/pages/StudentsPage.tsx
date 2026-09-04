@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
   BadgeCheck,
+  CalendarClock,
   CheckCircle2,
   Coins,
   GraduationCap,
@@ -340,6 +341,13 @@ export default function StudentsPage() {
     });
   };
 
+  const toggleHOC = (student: Student) => {
+    toggleMutation.mutate({
+      id: student.id,
+      updates: { isHOC: !student.isHOC },
+    });
+  };
+
   return (
     <div className="p-8">
       <div className="mb-6">
@@ -623,6 +631,19 @@ export default function StudentsPage() {
                           title="Toggle verified contributor badge"
                         >
                           <BadgeCheck size={12} /> Verified
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleHOC(student)}
+                          disabled={toggleMutation.isPending}
+                          className={`flex items-center gap-1 text-xs rounded-lg px-2 py-1 w-fit transition ${
+                            student.isHOC
+                              ? "bg-amber-500/15 text-amber-400"
+                              : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"
+                          }`}
+                          title="Toggle HOC status (can schedule/edit/cancel classes on the bot)"
+                        >
+                          <CalendarClock size={12} /> HOC
                         </button>
                       </div>
                     </td>
