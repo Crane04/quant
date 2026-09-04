@@ -42,7 +42,7 @@ function buildSystemPrompt(student: StudentDoc): string {
 - Department: ${student.department}
 - Level: ${student.level}
 - HOC (Head of Class): ${student.isHOC ? "yes — can schedule/edit/cancel classes" : "no"}
-Today's date: ${new Date().toISOString().slice(0, 10)}
+Today's date: ${new Date().toISOString().slice(0, 10)} (${new Date().toLocaleDateString("en-US", { weekday: "long" })}) — use this to resolve "today"/"tomorrow"/"next Monday" etc. directly; don't calculate the day of week yourself, read it from here.
 
 Use the available tools to answer instead of guessing — never invent course material, grades,
 deadlines, or timetable info. If a tool returns no results, say so plainly rather than making
