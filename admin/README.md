@@ -41,7 +41,12 @@ Super admins can manage other admins from the **Admins** page.
 
 - **Overview** — total PDFs, downloads, courses covered, recent uploads, top downloaded
 - **Upload PDF** — drag-and-drop with metadata form (title, course code, department, level, semester, tags)
-- **Documents** — searchable/filterable table with delete and open-in-Cloudinary actions
+- **Documents** — searchable/filterable table; approve/reject the ambassador upload review queue, edit metadata, delete, open the file
+- **Courses** — catalogue CRUD (code, title, university, department, level, session, semester, credit units)
+- **Students** — search/edit student profiles; toggle ambassador/HOC status, verified-contributor flag; view points, points history, and earned badges
+- **Leaderboard** — students ranked by points (ambassadors-only filter)
+- **Rewards** — the reward redemption queue (vouchers, merchandise, token conversions) for fulfillment
+- **Announcements** — moderate lecture alerts and general announcements posted by ambassadors
 - **Admins** — create, deactivate, update, reset password, and delete admins as a super admin
 
 ## Build

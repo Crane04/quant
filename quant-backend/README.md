@@ -1,11 +1,14 @@
 # Quant Backend API
 
-Backend API for **Quant** — a WhatsApp academic assistant (lecture summaries,
+Backend for **Quant** — a WhatsApp academic assistant (lecture summaries,
 assignment reminders, PDFs, timetable access, CGPA tracking). This repo is
-**API only**: the WhatsApp bot and web dashboard are separate codebases that
-consume this API.
+the REST API **and** the WhatsApp bot itself: the webhook receiver, the
+WhatsApp Flow endpoint, and the Groq-powered tool-calling agent all live here
+(`controllers/webhookController.ts`, `controllers/flowController.ts`,
+`services/wa*.ts`). The `admin/` dashboard (a separate package in this repo)
+is the only other client.
 
-Stack: TypeScript, Express, MongoDB (Mongoose), Zod.
+Stack: TypeScript, Express, MongoDB (Mongoose), Zod, Groq (WhatsApp agent).
 
 ## Getting started
 
@@ -99,9 +102,10 @@ The HOC (ambassador) Hub is a student-authored broadcast, gated by
 `requireAmbassador`: `POST /announcements` creates a `lecture_alert` (tied to
 a course/timetable slot) or a general `announcement`, scoped to the
 ambassador's own (university, department, level). Every student in that
-scope sees it via `GET /announcements/mine`; the bot polls
-`GET /announcements/unsent` and calls `POST /announcements/:id/mark-sent`
-once delivered over WhatsApp — same pattern as assignment reminders.
+scope sees it via `GET /announcements/mine`, and a background sweep
+(`announcementDeliveryService.ts`, every 2 minutes) pushes it straight to
+every matching student over WhatsApp and marks it sent — no polling, since
+the bot is in-process now, not a separate consumer.
 
 ## Key endpoints
 
@@ -171,9 +175,12 @@ POST   /api/v1/announcements/:id/mark-sent   (trusted service)
   upload. Point `fileUrl` at wherever you're hosting PDFs (S3, etc.) — the
   `.env.example` has placeholders for S3 config if you want to add a
   presigned-URL upload endpoint later.
-- **Reminders**: nothing sends reminders on a schedule — that's the bot's
-  job. It should poll `GET /assignments/upcoming-reminders` (or you can add
-  a cron/queue here later) and message students itself.
+- **Reminders**: now sent on a schedule from inside this process
+  (`reminderService.ts`, `classReminderService.ts`,
+  `announcementDeliveryService.ts` — all `setInterval` sweeps started in
+  `server.ts`), not polled by an external bot. `GET
+  /assignments/upcoming-reminders` still exists but nothing in this repo
+  calls it anymore — remove it or repurpose it if you don't need it.
 - **Admin/trusted-service auth**: right now `requireBotApiKey` is one shared
   secret for both "the bot" and "whoever manages the course catalogue."
   Split these into separate keys/roles once you have an admin tool.
