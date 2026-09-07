@@ -85,6 +85,42 @@ export async function sendWhatsAppText(
 }
 
 /**
+ * Marks an incoming message as read (blue ticks) and shows the "typing…"
+ * indicator in the chat. Meta clears the typing indicator automatically
+ * after ~25s or as soon as we send a reply, whichever comes first — so this
+ * is meant to be fired immediately on webhook receipt, before the agent
+ * loop (which can take a few seconds) starts.
+ */
+export async function markAsRead(messageId: string): Promise<void> {
+  if (!env.META_WA_PHONE_NUMBER_ID || !env.META_WA_ACCESS_TOKEN) return;
+
+  const url = `${GRAPH_BASE_URL}/${env.META_WA_PHONE_NUMBER_ID}/messages`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.META_WA_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      status: "read",
+      message_id: messageId,
+      typing_indicator: { type: "text" },
+    }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    logger.error("WhatsApp mark-as-read failed", {
+      status: res.status,
+      body: errBody,
+    });
+    throw new Error(`Failed to mark WhatsApp message as read: ${res.status}`);
+  }
+}
+
+/**
  * Sends a file as a native WhatsApp document attachment (not a link) via the
  * Meta Cloud API's `link`-based document message — Meta fetches the file itself
  * from the given public URL, so this works directly off our R2 fileUrl with no
