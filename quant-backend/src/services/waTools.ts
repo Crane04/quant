@@ -312,6 +312,34 @@ export const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "reply_with_options",
+      description:
+        "Send your reply along with 1-3 tappable quick-reply buttons for a genuinely useful next " +
+        "action — e.g. suggesting 'Set target' right after showing a CGPA with no target set yet, " +
+        "or offering 'Schedule class' to a HOC when it's contextually relevant. Use this sparingly: " +
+        "most replies should just be plain text (don't call this tool at all). Only reach for it " +
+        "when there's a specific, obvious next step — never as a default menu, and never to list " +
+        "unrelated options just to seem helpful. Each button title must be under 20 characters and " +
+        "read like something the student would tap to continue (e.g. 'Set target', not 'CGPA " +
+        "options'), and tapping one sends that exact title back as their next message.",
+      parameters: {
+        type: "object",
+        properties: {
+          bodyText: { type: "string", description: "Your actual reply text" },
+          buttons: {
+            type: "array",
+            minItems: 1,
+            maxItems: 3,
+            items: { type: "string" },
+          },
+        },
+        required: ["bodyText", "buttons"],
+      },
+    },
+  },
 ] as const;
 
 // Only offered to students with isHOC set — filtered out of the tool list for

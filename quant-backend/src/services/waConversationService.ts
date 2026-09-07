@@ -7,6 +7,7 @@ import {
   sendWhatsAppDocument,
   sendWhatsAppFlow,
   sendWhatsAppCtaUrl,
+  sendWhatsAppButtons,
 } from "./waService";
 import {
   getWaSession,
@@ -84,6 +85,11 @@ schedule_class, update_class_schedule, and cancel_class are HOC-only — only of
 profile above says they're a HOC. Look up the course's current slots with get_course_schedule first
 if you need a slot id for an edit or cancellation. Scheduling a class notifies subscribed students
 automatically — don't tell the student to notify anyone separately.
+
+reply_with_options exists for the rare moment a specific next action is obviously useful — e.g.
+offering a HOC "Schedule class" when they're talking about their course, or "Set target" right
+after showing a CGPA with none set. It is not a menu: don't reach for it out of habit, and never
+use it just to look proactive. Most replies should stay plain text with no buttons at all.
 
 Keep replies short and WhatsApp-appropriate: plain text, *single asterisks* for bold, no markdown
 tables or headers, no long paragraphs.`;
@@ -194,11 +200,14 @@ async function runAgent(
   const tools = buildToolDefinitions(student);
 
   let finalReply: string | null = null;
+  // Set when reply_with_options already delivered the message as a buttons
+  // interactive message — skip the plain-text send at the end in that case.
+  let sentViaButtons = false;
   // Documents are sent as real attachments the moment the tool resolves them — never
   // routed through the model's own text, so it can't mistype a link or an id.
   const sentFileUrls = new Set<string>();
 
-  for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+  outer: for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const message = await completeChat(turn, tools);
     if (!message) break;
 
@@ -215,6 +224,36 @@ async function runAgent(
           args = JSON.parse(call.function.arguments || "{}");
         } catch {
           // leave args empty — the tool executor will just get no params
+        }
+
+        // Terminal action, not a data tool: ends the turn by sending a
+        // buttons message instead of looping back with a tool result.
+        if (call.function.name === "reply_with_options") {
+          const { bodyText, buttons } = args as {
+            bodyText?: string;
+            buttons?: string[];
+          };
+          finalReply = bodyText?.trim() || null;
+
+          if (finalReply && buttons && buttons.length > 0) {
+            try {
+              await sendWhatsAppButtons(from, {
+                bodyText: finalReply,
+                buttons: buttons
+                  .slice(0, 3)
+                  .map((title, idx) => ({ id: `opt_${idx}`, title })),
+              });
+              sentViaButtons = true;
+            } catch (err) {
+              // Bad button title (e.g. over 20 chars) or a send failure — fall
+              // back to a plain reply rather than losing the answer entirely.
+              logger.error("Failed to send WhatsApp buttons, falling back to text", {
+                to: from,
+                error: err instanceof Error ? err.message : "unknown",
+              });
+            }
+          }
+          break outer;
         }
 
         const result = await executeTool(
@@ -275,7 +314,9 @@ async function runAgent(
     if (!finalReply) finalReply = "Here you go!";
   }
 
-  await reply(from, finalReply);
+  if (!sentViaButtons) {
+    await reply(from, finalReply);
+  }
   appendWaHistory(from, [
     { role: "user", content: input },
     { role: "assistant", content: finalReply },

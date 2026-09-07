@@ -278,3 +278,68 @@ export async function sendWhatsAppCtaUrl(
     throw new Error(`Failed to send WhatsApp CTA URL: ${res.status}`);
   }
 }
+
+/**
+ * Sends up to 3 tappable quick-reply buttons. WhatsApp caps both the count
+ * (max 3) and each button's title (max 20 chars) — validated here so a bad
+ * call fails with a clear message instead of a cryptic Graph API 400.
+ * Tapping one sends its title back as if the student had typed it
+ * (see webhookController.ts's button_reply handling) — no special handling
+ * needed on the receiving side.
+ */
+export async function sendWhatsAppButtons(
+  to: string,
+  options: {
+    bodyText: string;
+    buttons: { id: string; title: string }[];
+    footerText?: string;
+  },
+): Promise<void> {
+  if (!env.META_WA_PHONE_NUMBER_ID || !env.META_WA_ACCESS_TOKEN) {
+    throw new Error("META_WA credentials not configured");
+  }
+  if (options.buttons.length === 0 || options.buttons.length > 3) {
+    throw new Error("WhatsApp reply-button messages support 1-3 buttons");
+  }
+  const tooLong = options.buttons.find((b) => b.title.length > 20);
+  if (tooLong) {
+    throw new Error(
+      `Button title "${tooLong.title}" exceeds WhatsApp's 20-character limit`,
+    );
+  }
+
+  const endpoint = `${GRAPH_BASE_URL}/${env.META_WA_PHONE_NUMBER_ID}/messages`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.META_WA_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: to.replace("+", ""),
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: options.bodyText },
+        ...(options.footerText && { footer: { text: options.footerText } }),
+        action: {
+          buttons: options.buttons.map((b) => ({
+            type: "reply",
+            reply: { id: b.id, title: b.title },
+          })),
+        },
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    logger.error("WhatsApp buttons send failed", {
+      status: res.status,
+      body: errBody,
+    });
+    throw new Error(`Failed to send WhatsApp buttons: ${res.status}`);
+  }
+}
