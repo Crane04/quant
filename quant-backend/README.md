@@ -162,25 +162,19 @@ GET    /api/v1/rewards/redemptions   (admin)
 
 POST   /api/v1/announcements   (ambassadors only — lecture_alert or announcement)
 GET    /api/v1/announcements/mine?type=
-GET    /api/v1/announcements/unsent   (trusted service — bot polls this)
+GET    /api/v1/announcements/unsent   (trusted service — unused, see below)
 POST   /api/v1/announcements/:id/mark-sent   (trusted service)
 ```
 
 ## Things left for you to wire up
 
-- **WhatsApp OTP delivery**: `src/services/waService.ts` sends via the Meta
-  Cloud API using a free-form text message. Outside Meta's 24h session
-  window you'll need an approved template message instead — swap it in there.
-- **File uploads**: `DocumentFile` stores a `fileUrl`, it doesn't handle byte
-  upload. Point `fileUrl` at wherever you're hosting PDFs (S3, etc.) — the
-  `.env.example` has placeholders for S3 config if you want to add a
-  presigned-URL upload endpoint later.
 - **Reminders**: now sent on a schedule from inside this process
   (`reminderService.ts`, `classReminderService.ts`,
   `announcementDeliveryService.ts` — all `setInterval` sweeps started in
   `server.ts`), not polled by an external bot. `GET
-  /assignments/upcoming-reminders` still exists but nothing in this repo
-  calls it anymore — remove it or repurpose it if you don't need it.
+  /assignments/upcoming-reminders`, `GET /announcements/unsent`, and `POST
+  /announcements/:id/mark-sent` still exist but nothing in this repo calls
+  them anymore — remove them or repurpose them if you don't need them.
 - **Admin/trusted-service auth**: right now `requireBotApiKey` is one shared
   secret for both "the bot" and "whoever manages the course catalogue."
   Split these into separate keys/roles once you have an admin tool.
