@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireBotApiKey } from "../middleware/requireBotApiKey";
+import { requireAdminAuth } from "../middleware/requireAdminAuth";
 import { resolveStudentContext } from "../middleware/resolveStudentContext";
 import { validate } from "../middleware/validate";
 import * as controller from "../controllers/lectureSummaryController";
@@ -88,8 +88,8 @@ router.get("/:id", controller.getSummary);
  * /lecture-summaries:
  *   post:
  *     tags: [Lecture Summaries]
- *     summary: Create a lecture summary (trusted service)
- *     security: [{ botServiceKey: [] }]
+ *     summary: Create a lecture summary (admin)
+ *     security: [{ adminSession: [] }]
  *     requestBody:
  *       required: true
  *       content:
@@ -117,7 +117,7 @@ router.get("/:id", controller.getSummary);
  */
 router.post(
   "/",
-  requireBotApiKey,
+  requireAdminAuth,
   validate({ body: createLectureSummarySchema }),
   controller.createLectureSummary,
 );
@@ -127,8 +127,8 @@ router.post(
  * /lecture-summaries/{id}:
  *   patch:
  *     tags: [Lecture Summaries]
- *     summary: Update a lecture summary (trusted service)
- *     security: [{ botServiceKey: [] }]
+ *     summary: Update a lecture summary (admin)
+ *     security: [{ adminSession: [] }]
  *     parameters:
  *       - { name: id, in: path, required: true, schema: { type: string } }
  *     responses:
@@ -146,7 +146,7 @@ router.post(
  */
 router.patch(
   "/:id",
-  requireBotApiKey,
+  requireAdminAuth,
   validate({ body: updateLectureSummarySchema }),
   controller.updateLectureSummary,
 );
@@ -156,8 +156,8 @@ router.patch(
  * /lecture-summaries/{id}:
  *   delete:
  *     tags: [Lecture Summaries]
- *     summary: Delete a lecture summary (trusted service)
- *     security: [{ botServiceKey: [] }]
+ *     summary: Delete a lecture summary (admin)
+ *     security: [{ adminSession: [] }]
  *     parameters:
  *       - { name: id, in: path, required: true, schema: { type: string } }
  *     responses:
@@ -165,6 +165,6 @@ router.patch(
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-router.delete("/:id", requireBotApiKey, controller.deleteLectureSummary);
+router.delete("/:id", requireAdminAuth, controller.deleteLectureSummary);
 
 export default router;

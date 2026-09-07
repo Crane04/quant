@@ -47,10 +47,11 @@ Both paths are handled by the same `resolveStudentContext` middleware
 (`src/middleware/resolveStudentContext.ts`), so "my timetable" / "my
 assignments" / "my CGPA" endpoints work identically for either caller.
 
-Catalogue-mutating routes (creating courses, timetable slots, assignments,
-lecture summaries, documents) are gated behind `requireBotApiKey` for now —
-treat that as a generic "trusted service" key until you build a real admin
-role. See the `TODO` comments in `src/routes/courseRoutes.ts` etc.
+Catalogue-mutating routes (courses, timetable slots, lecture summaries,
+documents) all require a real admin login (`requireAdminAuth`) now, not the
+shared bot key — `BOT_SERVICE_API_KEY` is only used for the bot's own
+per-student identification (via `resolveStudentContext`) and a couple of
+now-unused legacy routes, see below.
 
 ## Data model
 
@@ -175,6 +176,8 @@ POST   /api/v1/announcements/:id/mark-sent   (trusted service)
   /assignments/upcoming-reminders`, `GET /announcements/unsent`, and `POST
   /announcements/:id/mark-sent` still exist but nothing in this repo calls
   them anymore — remove them or repurpose them if you don't need them.
-- **Admin/trusted-service auth**: right now `requireBotApiKey` is one shared
-  secret for both "the bot" and "whoever manages the course catalogue."
-  Split these into separate keys/roles once you have an admin tool.
+- **Duplicate document detection**: `POST /documents` and `POST
+  /documents/mine` (`documentController.ts`) don't check whether a matching
+  document (same course + title, or same file) already exists before
+  creating a new `DocumentFile` — nothing stops the same PDF from being
+  uploaded twice.
