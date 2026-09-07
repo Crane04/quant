@@ -91,8 +91,11 @@ offering a HOC "Schedule class" when they're talking about their course, or "Set
 after showing a CGPA with none set. It is not a menu: don't reach for it out of habit, and never
 use it just to look proactive. Most replies should stay plain text with no buttons at all.
 
-Keep replies short and WhatsApp-appropriate: plain text, *single asterisks* for bold, no markdown
-tables or headers, no long paragraphs.`;
+Keep replies short — this is a WhatsApp chat, not an email. Default to 1-3 sentences. Only use a
+numbered or bulleted list when you're genuinely asking for several distinct pieces of information
+(like scheduling fields) — never as a way to pad out an otherwise simple answer. No preamble, no
+restating what they asked, no closing filler like "let me know if you need anything else" — just
+answer. Plain text, *single asterisks* for bold, no markdown tables or headers.`;
 }
 
 // Serializes processing per phone number. The webhook handler fires-and-forgets each
@@ -164,13 +167,51 @@ async function processIncomingMessageInner(
     return;
   }
 
-  // Fast, free hard-reset — no LLM call needed.
-  if (["menu", "reset", "restart"].includes(input.toLowerCase())) {
+  // Fast, free greeting/reset — no LLM call needed, and fully deterministic
+  // (not left to the model's judgment, which turned out to be unreliable at
+  // deciding when a quick-reply menu is warranted).
+  const GREETING_WORDS = [
+    "hi",
+    "hello",
+    "hey",
+    "hiya",
+    "sup",
+    "yo",
+    "hola",
+    "menu",
+    "reset",
+    "restart",
+  ];
+  if (GREETING_WORDS.includes(input.toLowerCase())) {
     clearWaSession(from);
-    await reply(
-      from,
-      `Hey ${student.fullName.split(" ")[0]}! Ask me anything — course material, your timetable, assignments, CGPA, or enrolling in a course.`,
-    );
+    const firstName = student.fullName.split(" ")[0];
+    const buttons = student.isHOC
+      ? [
+          { id: "opt_0", title: "Get PDFs" },
+          { id: "opt_1", title: "Schedule class" },
+          { id: "opt_2", title: "Check CGPA" },
+        ]
+      : [
+          { id: "opt_0", title: "Get PDFs" },
+          { id: "opt_1", title: "My timetable" },
+          { id: "opt_2", title: "Check CGPA" },
+        ];
+
+    try {
+      await sendWhatsAppButtons(from, {
+        bodyText: `Hey ${firstName}! 👋 How can I help?`,
+        buttons,
+      });
+    } catch (err) {
+      logger.error("Failed to send greeting buttons, falling back to text", {
+        to: from,
+        error: err instanceof Error ? err.message : "unknown",
+      });
+      await reply(
+        from,
+        `Hey ${firstName}! Ask me anything — course material, your timetable, assignments, CGPA, or enrolling in a course.`,
+      );
+    }
     return;
   }
 
@@ -206,6 +247,12 @@ async function runAgent(
   // Documents are sent as real attachments the moment the tool resolves them — never
   // routed through the model's own text, so it can't mistype a link or an id.
   const sentFileUrls = new Set<string>();
+  // Deterministic button suggestion, set from a tool's actual result rather than
+  // hoping the model chooses to call reply_with_options — tool-calling models are
+  // trained to reach for tools that fetch/do something, not ones that reformat
+  // their own answer, so relying on it alone turned out to be unreliable in
+  // practice. First match wins if more than one applies in the same turn.
+  let suggestedButton: { title: string } | null = null;
 
   outer: for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const message = await completeChat(turn, tools);
@@ -264,6 +311,32 @@ async function runAgent(
           error: err instanceof Error ? err.message : "Tool execution failed",
         }));
 
+        if (call.function.name === "get_cgpa") {
+          const r = result as {
+            hasGrades?: boolean;
+            target?: { status?: string } | null;
+          };
+          if (r.hasGrades && r.target === null) {
+            suggestedButton ??= { title: "Set target" };
+          } else if (r.hasGrades && r.target?.status === "unrealistic") {
+            suggestedButton ??= { title: "Adjust target" };
+          }
+        }
+
+        if (call.function.name === "get_course_schedule" && student.isHOC) {
+          const r = result as { found?: boolean; slots?: unknown[] };
+          if (r.found && r.slots && r.slots.length === 0) {
+            suggestedButton ??= { title: "Schedule class" };
+          }
+        }
+
+        if (call.function.name === "get_assignments") {
+          const r = result as { assignments?: unknown[] };
+          if (r.assignments && r.assignments.length === 0) {
+            suggestedButton ??= { title: "Add reminder" };
+          }
+        }
+
         if (call.function.name === "get_document_link") {
           const r = result as {
             found?: boolean;
@@ -312,6 +385,21 @@ async function runAgent(
       .replace(/[ \t]+\n/g, "\n")
       .trim();
     if (!finalReply) finalReply = "Here you go!";
+  }
+
+  if (!sentViaButtons && suggestedButton) {
+    try {
+      await sendWhatsAppButtons(from, {
+        bodyText: finalReply,
+        buttons: [{ id: "opt_0", title: suggestedButton.title }],
+      });
+      sentViaButtons = true;
+    } catch (err) {
+      logger.error(
+        "Failed to send deterministic suggestion button, falling back to text",
+        { to: from, error: err instanceof Error ? err.message : "unknown" },
+      );
+    }
   }
 
   if (!sentViaButtons) {

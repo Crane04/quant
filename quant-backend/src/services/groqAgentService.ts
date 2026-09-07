@@ -115,6 +115,12 @@ export async function completeChat(
     {
       model: env.GROQ_MODEL,
       temperature: 0.3,
+      // Hard ceiling on reply length — WhatsApp messages should be short, and
+      // the system prompt's own brevity guidance isn't always followed strictly
+      // enough on its own. ~300 tokens is generous for a legitimate multi-item
+      // list (e.g. scheduling fields) but stops rambling well before it turns
+      // into an essay.
+      max_tokens: 300,
       messages,
       tools,
       tool_choice: "auto",
