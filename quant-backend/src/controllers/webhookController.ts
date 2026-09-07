@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import { env } from "../config/env";
 import { logger } from "../utils/logger";
-import { verifyWebhookSignature, metaPhoneToE164 } from "../services/waService";
+import {
+  verifyWebhookSignature,
+  metaPhoneToE164,
+  markAsRead,
+} from "../services/waService";
 import {
   processIncomingMessage,
   processFlowSubmission,
@@ -29,6 +33,7 @@ type MetaWebhookPayload = {
     changes?: Array<{
       value?: {
         messages?: Array<{
+          id?: string;
           from?: string;
           type?: string;
           text?: { body?: string };
@@ -64,6 +69,18 @@ export function handleIncoming(req: Request, res: Response): void {
   for (const message of messages) {
     if (!message.from) continue;
     const from = metaPhoneToE164(message.from);
+
+    if (message.id) {
+      // Fired immediately, before the agent loop starts — that's the whole point:
+      // the "typing…" indicator only means something if it appears before the
+      // (sometimes multi-second) reply, not alongside or after it.
+      markAsRead(message.id).catch((err) => {
+        logger.warn("Failed to mark WhatsApp message as read", {
+          from,
+          error: err instanceof Error ? err.message : "unknown",
+        });
+      });
+    }
 
     if (message.interactive?.type === "nfm_reply") {
       const responseJson = message.interactive.nfm_reply?.response_json;
