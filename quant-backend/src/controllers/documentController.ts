@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { createHash, randomUUID } from "crypto";
 import { Types } from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler";
 import { sendSuccess } from "../utils/apiResponse";
@@ -8,9 +9,15 @@ import { Course } from "../models/Course";
 import { StudentCourse } from "../models/StudentCourse";
 import { ApiError } from "../utils/ApiError";
 import { findOrCreateCourse } from "../services/courseService";
-import { uploadFile, deleteFile } from "../services/storageService";
+import {
+  uploadBuffer,
+  uploadFile,
+  deleteFile,
+} from "../services/storageService";
+import { generatePdfThumbnail } from "../services/pdfThumbnailService";
 import { awardPointsForApprovedDocument } from "../services/pointsService";
 import { evaluateBadgesForStudent } from "../services/badgeService";
+import { logger } from "../utils/logger";
 
 function parseTags(tags?: string): string[] {
   if (!tags) return [];
@@ -35,6 +42,29 @@ type UploadDocumentBody = {
   tags?: string;
 };
 
+function getFileHash(buffer: Buffer): string {
+  return createHash("sha256").update(buffer).digest("hex");
+}
+
+function duplicateDocumentError(doc: {
+  _id: Types.ObjectId;
+  title: string;
+}) {
+  return ApiError.conflict("This material has already been uploaded", {
+    documentId: doc._id.toString(),
+    title: doc.title,
+  });
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: number }).code === 11000
+  );
+}
+
 async function uploadDocument(
   req: Request,
   uploadedByType: "Admin" | "Student",
@@ -42,6 +72,10 @@ async function uploadDocument(
 ) {
   const file = req.file;
   if (!file) throw ApiError.badRequest("PDF file is required (field 'pdf')");
+
+  const fileHash = getFileHash(file.buffer);
+  const existing = await DocumentFile.findOne({ fileHash }).select("_id title");
+  if (existing) throw duplicateDocumentError(existing);
 
   const body = req.body as UploadDocumentBody;
 
@@ -65,23 +99,71 @@ async function uploadDocument(
     file.mimetype,
   );
 
+  let thumbnail: { url: string; key: string } | undefined;
+  let thumbnailKey: string | undefined;
+  try {
+    const thumbnailBuffer = await generatePdfThumbnail(file.buffer);
+    thumbnailKey = `thumbnails/${randomUUID()}.png`;
+    thumbnail = await uploadBuffer(
+      thumbnailBuffer,
+      thumbnailKey,
+      "image/png",
+    );
+  } catch (error) {
+    if (thumbnailKey) {
+      try {
+        await deleteFile(thumbnailKey);
+      } catch (cleanupError) {
+        logger.warn("Failed to clean up document thumbnail", {
+          error:
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : "unknown",
+        });
+      }
+    }
+    logger.warn("Failed to create document thumbnail", {
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  }
+
   // Admin uploads don't need review; student uploads start pending and only earn
   // points once an admin approves them (see reviewDocument below).
   const status = uploadedByType === "Admin" ? "approved" : "pending";
 
-  const doc = await DocumentFile.create({
-    course: course._id,
-    title: body.title,
-    category: body.category,
-    fileUrl: url,
-    fileType: "pdf",
-    sizeBytes: file.size,
-    storageKey: key,
-    tags: parseTags(body.tags),
-    uploadedByType,
-    uploadedBy,
-    status,
-  });
+  let doc;
+  try {
+    doc = await DocumentFile.create({
+      course: course._id,
+      title: body.title,
+      category: body.category,
+      fileUrl: url,
+      fileType: "pdf",
+      fileHash,
+      ...(thumbnail && {
+        thumbnailUrl: thumbnail.url,
+        thumbnailStorageKey: thumbnail.key,
+      }),
+      sizeBytes: file.size,
+      storageKey: key,
+      tags: parseTags(body.tags),
+      uploadedByType,
+      uploadedBy,
+      status,
+    });
+  } catch (error) {
+    // The unique hash index closes the find-then-create race. Remove the R2
+    // object created by the losing request before returning the duplicate.
+    await deleteFile(key);
+    if (thumbnail?.key) await deleteFile(thumbnail.key);
+    if (isDuplicateKeyError(error)) {
+      const duplicate = await DocumentFile.findOne({ fileHash }).select(
+        "_id title",
+      );
+      if (duplicate) throw duplicateDocumentError(duplicate);
+    }
+    throw error;
+  }
 
   return doc.populate("course");
 }
@@ -222,6 +304,7 @@ export const deleteDocument = asyncHandler(
     const doc = await DocumentFile.findByIdAndDelete(req.params.id);
     if (!doc) throw ApiError.notFound("Document not found");
     if (doc.storageKey) await deleteFile(doc.storageKey);
+    if (doc.thumbnailStorageKey) await deleteFile(doc.thumbnailStorageKey);
     sendSuccess(res, undefined, "Document deleted");
   },
 );

@@ -163,6 +163,7 @@ const options: swaggerJsdoc.Options = {
             course: { $ref: "#/components/schemas/Course" },
             title: { type: "string" },
             fileUrl: { type: "string" },
+            thumbnailUrl: { type: "string" },
             fileType: { type: "string", example: "pdf" },
             sizeBytes: { type: "integer" },
             tags: { type: "array", items: { type: "string" } },
