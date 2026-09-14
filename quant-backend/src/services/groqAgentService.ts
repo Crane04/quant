@@ -18,7 +18,7 @@ export type ToolCall = {
 };
 
 type GroqResponse = {
-  choices?: Array<{ message?: ChatMessage }>;
+  choices?: Array<{ message?: ChatMessage; finish_reason?: string }>;
 };
 
 // Groq's per-minute token limit resets quickly — a 429 usually asks for a
@@ -115,12 +115,16 @@ export async function completeChat(
     {
       model: env.GROQ_MODEL,
       temperature: 0.3,
-      // Hard ceiling on reply length — WhatsApp messages should be short, and
-      // the system prompt's own brevity guidance isn't always followed strictly
-      // enough on its own. ~300 tokens is generous for a legitimate multi-item
-      // list (e.g. scheduling fields) but stops rambling well before it turns
-      // into an essay.
-      max_tokens: 300,
+      // A backstop against truly runaway generation, not the mechanism that
+      // keeps replies short — that's the system prompt's job. GROQ_MODEL
+      // (openai/gpt-oss-120b) is a reasoning model: it spends tokens on
+      // internal chain-of-thought before the visible reply or a tool call,
+      // and those count against this same budget. A tight cap (previously
+      // 300) can truncate mid-reasoning or mid-tool-call before anything
+      // usable comes out, which read as a random "having trouble" failure —
+      // it wasn't a failure, the response just got cut off. Kept generous
+      // enough that normal reasoning + a reply/tool call always fits.
+      max_tokens: 2000,
       messages,
       tools,
       tool_choice: "auto",
@@ -130,7 +134,14 @@ export async function completeChat(
   if (!res) return null;
 
   const data = (await res.json()) as GroqResponse;
-  return data.choices?.[0]?.message ?? null;
+  const choice = data.choices?.[0];
+  if (choice?.finish_reason === "length") {
+    logger.warn("Groq agent response was truncated by max_tokens", {
+      hasContent: !!choice.message?.content,
+      hasToolCalls: !!choice.message?.tool_calls?.length,
+    });
+  }
+  return choice?.message ?? null;
 }
 
 /** One-shot structured extraction — no tools, forces a JSON object response. */
