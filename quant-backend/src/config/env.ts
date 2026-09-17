@@ -32,8 +32,13 @@ const envSchema = z.object({
   GROQ_API_KEY: z.string().optional().default(""),
   GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
 
-  // Base URL this API is reachable at — used to build the /view/:id links sent over WhatsApp
-  APP_BASE_URL: z.string().default("http://localhost:4000"),
+  // Base URL this API is reachable at — used to build the /view/:id links sent over WhatsApp.
+  // Trailing slash stripped so callers can safely do `${APP_BASE_URL}/view/${id}` without
+  // risking a double slash (which some proxies/routers treat as a redirect or 404).
+  APP_BASE_URL: z
+    .string()
+    .default("http://localhost:4000")
+    .transform((url) => url.replace(/\/+$/, "")),
 
   RESEND_API_KEY: z.string().optional().default(""),
   MAIL_FROM: z.string().optional().default("Quant <no-reply@quant.app>"),
