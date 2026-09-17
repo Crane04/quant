@@ -4,6 +4,7 @@ import * as authService from "./authService";
 import { verifyOtp, issueOtp } from "./otpService";
 import {
   sendWhatsAppText,
+  sendWhatsAppDocument,
   sendWhatsAppFlow,
   sendWhatsAppCtaUrl,
   sendWhatsAppButtons,
@@ -50,10 +51,9 @@ something up.
 
 When search_course_materials returns multiple documents, list them briefly (title + category)
 and ask which one they want before calling get_document_link — unless there's exactly one
-obvious match, in which case just send it directly. get_document_link delivers a tappable
-"View document" button that opens the PDF in WhatsApp's in-app browser automatically — never
-write out a link or URL yourself, just briefly confirm you're sending it (e.g. "Here's the
-MEE 305 note!").
+obvious match, in which case just send it directly. get_document_link delivers the actual PDF
+as a WhatsApp file attachment automatically — never write out a link or URL yourself, just
+briefly confirm you're sending it (e.g. "Here's the MEE 305 note!").
 
 When search_course_materials finds nothing, assume the course code they gave you is correct —
 the library just doesn't have that material *yet*. Don't tell them to double-check the code or
@@ -244,9 +244,9 @@ async function runAgent(
   // Set when reply_with_options already delivered the message as a buttons
   // interactive message — skip the plain-text send at the end in that case.
   let sentViaButtons = false;
-  // Documents are sent as a CTA-URL button the moment the tool resolves them — never
+  // Documents are sent as real attachments the moment the tool resolves them — never
   // routed through the model's own text, so it can't mistype a link or an id.
-  const sentDocumentIds = new Set<string>();
+  const sentFileUrls = new Set<string>();
   // Deterministic button suggestion, set from a tool's actual result rather than
   // hoping the model chooses to call reply_with_options — tool-calling models are
   // trained to reach for tools that fetch/do something, not ones that reformat
@@ -340,19 +340,17 @@ async function runAgent(
         if (call.function.name === "get_document_link") {
           const r = result as {
             found?: boolean;
-            documentId?: string;
-            title?: string;
-            courseCode?: string;
+            fileUrl?: string;
+            filename?: string;
           };
-          if (r.found && r.documentId && !sentDocumentIds.has(r.documentId)) {
-            sentDocumentIds.add(r.documentId);
-            const header = r.courseCode ? `${r.courseCode}: ${r.title}` : r.title;
-            await sendWhatsAppCtaUrl(from, {
-              bodyText: header ?? "Tap below to view it instantly.",
-              buttonText: "View document",
-              url: `${env.APP_BASE_URL}/view/${r.documentId}`,
-            }).catch((err) => {
-              logger.error("Failed to send document CTA URL", {
+          if (r.found && r.fileUrl && !sentFileUrls.has(r.fileUrl)) {
+            sentFileUrls.add(r.fileUrl);
+            await sendWhatsAppDocument(
+              from,
+              r.fileUrl,
+              r.filename ?? "document.pdf",
+            ).catch((err) => {
+              logger.error("Failed to send WhatsApp document", {
                 to: from,
                 error: err instanceof Error ? err.message : "unknown",
               });
@@ -380,8 +378,8 @@ async function runAgent(
   }
 
   // Defense in depth: strip any URL the model wrote anyway, despite the system
-  // prompt telling it not to — the viewer link already went out as a CTA button.
-  if (sentDocumentIds.size > 0) {
+  // prompt telling it not to — the file already went out as a real attachment.
+  if (sentFileUrls.size > 0) {
     finalReply = finalReply
       .replace(/https?:\/\/\S+/g, "")
       .replace(/[ \t]+\n/g, "\n")

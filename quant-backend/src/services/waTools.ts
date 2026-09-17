@@ -43,9 +43,9 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: "get_document_link",
       description:
-        "Sends one specific document to the student as a tappable in-app viewer button, by its " +
-        "id. The button is delivered automatically as a separate message — do not include a " +
-        "link in your reply, just briefly confirm you're sending it.",
+        "Sends one specific document to the student as a WhatsApp file attachment, by its id. " +
+        "The file is delivered automatically as a separate message — do not include a link in " +
+        "your reply, just briefly confirm you're sending it.",
       parameters: {
         type: "object",
         properties: { documentId: { type: "string" } },
@@ -413,19 +413,31 @@ export async function searchCourseMaterials(args: {
   };
 }
 
+function sanitizeFilename(title: string, fileType: string): string {
+  const base =
+    title
+      .trim()
+      .replace(/[^a-zA-Z0-9 _-]/g, "")
+      .replace(/\s+/g, "_") || "document";
+  return `${base}.${fileType}`;
+}
+
 export async function getDocumentLink(args: { documentId: string }) {
   const doc = await DocumentFile.findById(args.documentId).populate("course");
   if (!doc || doc.status !== "approved")
     return { found: false, message: "Document not found." };
 
-  // downloadCount is now incremented by the /view route itself, when the student
-  // actually opens the viewer — not here, where the link is merely generated.
+  await DocumentFile.updateOne(
+    { _id: doc._id },
+    { $inc: { downloadCount: 1 } },
+  );
 
   return {
     found: true,
     title: doc.title,
     courseCode: (doc.course as unknown as { code: string }).code,
-    documentId: doc._id.toString(),
+    fileUrl: doc.fileUrl,
+    filename: sanitizeFilename(doc.title, doc.fileType),
   };
 }
 
