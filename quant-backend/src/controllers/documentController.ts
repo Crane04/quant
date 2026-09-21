@@ -9,6 +9,11 @@ import { StudentCourse } from "../models/StudentCourse";
 import { ApiError } from "../utils/ApiError";
 import { findOrCreateCourse } from "../services/courseService";
 import { uploadFile, deleteFile } from "../services/storageService";
+import { PdfValidationError } from "../services/pdfValidationService";
+import {
+  inspectPdfBuffer,
+  shouldRejectForScanQuality,
+} from "../services/pdfBlankDetectionService";
 import { awardPointsForApprovedDocument } from "../services/pointsService";
 import { evaluateBadgesForStudent } from "../services/badgeService";
 
@@ -43,6 +48,34 @@ async function uploadDocument(
   const file = req.file;
   if (!file) throw ApiError.badRequest("PDF file is required (field 'pdf')");
 
+  let scanQualityStatus: "clear" | "review";
+  try {
+    const inspection = await inspectPdfBuffer(file.buffer);
+    if (inspection.isBlank) {
+      throw ApiError.badRequest(
+        "The uploaded PDF appears to contain only blank pages.",
+      );
+    }
+    if (shouldRejectForScanQuality(inspection.scanQuality)) {
+      throw ApiError.badRequest(
+        "The uploaded PDF scan quality is too poor. Please upload a clearer scan.",
+      );
+    }
+    scanQualityStatus = inspection.scanQuality.status;
+  } catch (error) {
+    if (error instanceof PdfValidationError) {
+      if (error.failure === "password-protected") {
+        throw ApiError.badRequest(
+          "This PDF is password-protected. Please upload an unlocked PDF.",
+        );
+      }
+
+      throw ApiError.badRequest("The uploaded file is not a valid PDF.");
+    }
+
+    throw error;
+  }
+
   const body = req.body as UploadDocumentBody;
 
   const course = body.courseId
@@ -75,6 +108,7 @@ async function uploadDocument(
     category: body.category,
     fileUrl: url,
     fileType: "pdf",
+    scanQualityStatus,
     sizeBytes: file.size,
     storageKey: key,
     tags: parseTags(body.tags),

@@ -164,6 +164,7 @@ const options: swaggerJsdoc.Options = {
             title: { type: "string" },
             fileUrl: { type: "string" },
             fileType: { type: "string", example: "pdf" },
+            scanQualityStatus: { type: "string", enum: ["clear", "review"] },
             sizeBytes: { type: "integer" },
             tags: { type: "array", items: { type: "string" } },
             downloadCount: { type: "integer" },

@@ -6,6 +6,7 @@ const documentFileSchema = new Schema(
     title: { type: String, required: true, trim: true },
     fileUrl: { type: String, required: true },
     fileType: { type: String, required: true }, // "pdf", "docx", "image", ...
+    scanQualityStatus: { type: String, enum: ["clear", "review"] },
     sizeBytes: { type: Number },
     storageKey: { type: String }, // object key in the storage bucket, needed to delete the file
     tags: { type: [String], default: [] },
