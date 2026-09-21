@@ -343,3 +343,97 @@ export async function sendWhatsAppButtons(
     throw new Error(`Failed to send WhatsApp buttons: ${res.status}`);
   }
 }
+
+/**
+ * Sends an interactive list message — WhatsApp's menu format for more than 3
+ * options. Reply buttons (sendWhatsAppButtons) cap out at 3; a list supports
+ * up to 10 rows spread across one or more sections. Tapping a row sends its
+ * title back as if the student had typed it, same as a reply button (see
+ * webhookController.ts's list_reply handling) — no special handling needed
+ * on the receiving side.
+ */
+export async function sendWhatsAppList(
+  to: string,
+  options: {
+    bodyText: string;
+    buttonText: string;
+    sections: {
+      title?: string;
+      rows: { id: string; title: string; description?: string }[];
+    }[];
+    headerText?: string;
+    footerText?: string;
+  },
+): Promise<void> {
+  if (!env.META_WA_PHONE_NUMBER_ID || !env.META_WA_ACCESS_TOKEN) {
+    throw new Error("META_WA credentials not configured");
+  }
+  if (options.buttonText.length > 20) {
+    throw new Error(
+      `List button text "${options.buttonText}" exceeds WhatsApp's 20-character limit`,
+    );
+  }
+  const allRows = options.sections.flatMap((s) => s.rows);
+  if (allRows.length === 0 || allRows.length > 10) {
+    throw new Error(
+      "WhatsApp list messages support 1-10 rows total across all sections",
+    );
+  }
+  const tooLongTitle = allRows.find((r) => r.title.length > 24);
+  if (tooLongTitle) {
+    throw new Error(
+      `Row title "${tooLongTitle.title}" exceeds WhatsApp's 24-character limit`,
+    );
+  }
+  const tooLongDescription = allRows.find(
+    (r) => (r.description?.length ?? 0) > 72,
+  );
+  if (tooLongDescription) {
+    throw new Error(
+      `Row description for "${tooLongDescription.title}" exceeds WhatsApp's 72-character limit`,
+    );
+  }
+
+  const endpoint = `${GRAPH_BASE_URL}/${env.META_WA_PHONE_NUMBER_ID}/messages`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.META_WA_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: to.replace("+", ""),
+      type: "interactive",
+      interactive: {
+        type: "list",
+        ...(options.headerText && {
+          header: { type: "text", text: options.headerText },
+        }),
+        body: { text: options.bodyText },
+        ...(options.footerText && { footer: { text: options.footerText } }),
+        action: {
+          button: options.buttonText,
+          sections: options.sections.map((s) => ({
+            ...(s.title && { title: s.title }),
+            rows: s.rows.map((r) => ({
+              id: r.id,
+              title: r.title,
+              ...(r.description && { description: r.description }),
+            })),
+          })),
+        },
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    logger.error("WhatsApp list send failed", {
+      status: res.status,
+      body: errBody,
+    });
+    throw new Error(`Failed to send WhatsApp list: ${res.status}`);
+  }
+}
