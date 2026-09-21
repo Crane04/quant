@@ -33,9 +33,17 @@ export async function uploadFile(
   originalName: string,
   contentType: string,
 ): Promise<{ url: string; key: string }> {
-  assertConfigured();
-
   const key = `documents/${randomUUID()}-${originalName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+
+  return uploadBuffer(buffer, key, contentType);
+}
+
+export async function uploadBuffer(
+  buffer: Buffer,
+  key: string,
+  contentType: string,
+): Promise<{ url: string; key: string }> {
+  assertConfigured();
 
   await client.send(
     new PutObjectCommand({
