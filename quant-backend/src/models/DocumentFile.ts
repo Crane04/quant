@@ -7,6 +7,9 @@ const documentFileSchema = new Schema(
     fileUrl: { type: String, required: true },
     fileType: { type: String, required: true }, // "pdf", "docx", "image", ...
     scanQualityStatus: { type: String, enum: ["clear", "review"] },
+    fileHash: { type: String }, // SHA-256 of the uploaded file bytes
+    thumbnailUrl: { type: String },
+    thumbnailStorageKey: { type: String },
     sizeBytes: { type: Number },
     storageKey: { type: String }, // object key in the storage bucket, needed to delete the file
     tags: { type: [String], default: [] },
@@ -49,6 +52,9 @@ documentFileSchema.index({ course: 1, createdAt: -1 });
 documentFileSchema.index({ title: "text", tags: "text" });
 documentFileSchema.index({ status: 1, createdAt: -1 });
 documentFileSchema.index({ uploadedByType: 1, uploadedBy: 1, status: 1 });
+// Sparse keeps legacy documents without a hash valid while enforcing exact
+// duplicate protection for all newly uploaded files.
+documentFileSchema.index({ fileHash: 1 }, { unique: true, sparse: true });
 
 export type DocumentFileDoc = InferSchemaType<typeof documentFileSchema> & {
   _id: Types.ObjectId;
