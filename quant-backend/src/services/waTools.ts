@@ -315,6 +315,32 @@ export const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "preview_broadcast",
+      description:
+        "HOC-only. Draft a broadcast announcement to every student in your own class " +
+        "(university/department/level) over WhatsApp. This only shows a preview with the " +
+        "audience size — it does NOT send anything yet. The student must tap 'Send broadcast' " +
+        "on the preview to actually dispatch it, or 'Cancel' to discard the draft. Never claim " +
+        "you've sent or broadcast anything — only that you've drafted it for review.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "Short headline, e.g. 'Venue Change'. Keep under 60 characters.",
+          },
+          message: {
+            type: "string",
+            description: "The full announcement text to broadcast.",
+          },
+        },
+        required: ["title", "message"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "reply_with_options",
       description:
         "Send your reply along with 1-3 tappable quick-reply buttons for a genuinely useful next " +
@@ -349,6 +375,7 @@ export const HOC_ONLY_TOOLS = new Set([
   "schedule_class",
   "update_class_schedule",
   "cancel_class",
+  "preview_broadcast",
 ]);
 
 // Nigerian academic sessions run roughly September through July/August — derived from
@@ -1023,6 +1050,37 @@ export async function recordGrade(
   return { success: true };
 }
 
+/**
+ * Computes the audience and echoes back the draft — never sends anything. The actual
+ * dispatch (creating the Announcement doc + pushing it out) only happens once the HOC
+ * taps "Send broadcast" on the preview, handled deterministically in
+ * waConversationService.ts rather than by a tool call, so a paraphrasing model can't
+ * accidentally fire off a message to a whole class.
+ */
+export async function previewBroadcast(
+  student: StudentDoc,
+  args: { title: string; message: string },
+) {
+  if (!student.isHOC)
+    return { success: false, message: "Only HOCs can send broadcasts." };
+
+  const audienceCount = await Student.countDocuments({
+    university: student.university,
+    department: student.department,
+    level: student.level,
+  });
+
+  return {
+    success: true,
+    title: args.title.trim(),
+    message: args.message.trim(),
+    university: student.university,
+    department: student.department,
+    level: student.level,
+    audienceCount,
+  };
+}
+
 export async function executeTool(
   name: string,
   args: Record<string, unknown>,
@@ -1097,6 +1155,8 @@ export async function executeTool(
           grade: string;
         },
       );
+    case "preview_broadcast":
+      return previewBroadcast(student, args as { title: string; message: string });
     default:
       return { error: `Unknown tool: ${name}` };
   }

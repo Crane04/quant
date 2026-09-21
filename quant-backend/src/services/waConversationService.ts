@@ -1,5 +1,7 @@
 import crypto from "crypto";
 import { Student, StudentDoc } from "../models/Student";
+import { Announcement } from "../models/Announcement";
+import { deliverAnnouncementNow } from "./announcementDeliveryService";
 import * as authService from "./authService";
 import { verifyOtp, issueOtp } from "./otpService";
 import {
@@ -8,6 +10,7 @@ import {
   sendWhatsAppFlow,
   sendWhatsAppCtaUrl,
   sendWhatsAppButtons,
+  sendWhatsAppList,
 } from "./waService";
 import {
   getWaSession,
@@ -85,6 +88,12 @@ schedule_class, update_class_schedule, and cancel_class are HOC-only — only of
 profile above says they're a HOC. Look up the course's current slots with get_course_schedule first
 if you need a slot id for an edit or cancellation. Scheduling a class notifies subscribed students
 automatically — don't tell the student to notify anyone separately.
+
+preview_broadcast is HOC-only — drafts a message to the HOC's whole class. Calling it shows the HOC
+a preview with the audience size and Send/Cancel buttons automatically; it does not send anything
+itself. Never say you've "sent" or "broadcast" something — only that you've drafted it for them to
+confirm. Write the title and message yourself from what the HOC tells you; don't ask them to
+reformat it into a template.
 
 reply_with_options exists for the rare moment a specific next action is obviously useful — e.g.
 offering a HOC "Schedule class" when they're talking about their course, or "Set target" right
@@ -167,6 +176,69 @@ async function processIncomingMessageInner(
     return;
   }
 
+  // A drafted-but-unconfirmed broadcast (see preview_broadcast's handling below) —
+  // intercepted deterministically rather than left to the agent, since a paraphrasing
+  // model re-deciding whether "yes" means "send this to 128 people" is exactly the
+  // kind of consequential action this codebase avoids trusting to the LLM for.
+  const pendingBroadcast = wa.data.pendingBroadcast as
+    | {
+        title: string;
+        message: string;
+        university: string;
+        department: string;
+        level: string;
+        audienceCount: number;
+      }
+    | undefined;
+
+  if (pendingBroadcast && student.isHOC) {
+    const normalized = input.toLowerCase();
+
+    if (normalized === "send broadcast") {
+      setWaSession(from, "IDLE", { pendingBroadcast: undefined });
+      try {
+        const announcement = await Announcement.create({
+          type: "announcement",
+          title: pendingBroadcast.title,
+          message: pendingBroadcast.message,
+          university: pendingBroadcast.university,
+          department: pendingBroadcast.department,
+          level: pendingBroadcast.level,
+          createdByType: "Student",
+          createdBy: student._id,
+        });
+        const stats = await deliverAnnouncementNow(announcement._id.toString());
+        const delivered = stats?.delivered ?? 0;
+        const targeted = stats?.targeted ?? pendingBroadcast.audienceCount;
+        await reply(
+          from,
+          `✅ *Broadcast dispatched!*\n\nDelivered to ${delivered}/${targeted} students in ${pendingBroadcast.department} ${pendingBroadcast.level}.`,
+        );
+      } catch (err) {
+        logger.error("Failed to dispatch WhatsApp broadcast", {
+          to: from,
+          error: err instanceof Error ? err.message : "unknown",
+        });
+        await reply(
+          from,
+          "⚠️ Something went wrong sending that broadcast — please try again.",
+        );
+      }
+      return;
+    }
+
+    if (normalized === "cancel") {
+      setWaSession(from, "IDLE", { pendingBroadcast: undefined });
+      await reply(from, "Broadcast discarded.");
+      return;
+    }
+
+    // Anything else (a correction, a new question) drops the stale draft rather than
+    // silently keeping it around — a later "send broadcast" shouldn't resurrect an
+    // outdated preview. Falls through to the normal flow below.
+    setWaSession(from, "IDLE", { pendingBroadcast: undefined });
+  }
+
   // Fast, free greeting/reset — no LLM call needed, and fully deterministic
   // (not left to the model's judgment, which turned out to be unreliable at
   // deciding when a quick-reply menu is warranted).
@@ -185,25 +257,72 @@ async function processIncomingMessageInner(
   if (GREETING_WORDS.includes(input.toLowerCase())) {
     clearWaSession(from);
     const firstName = student.fullName.split(" ")[0];
-    const buttons = student.isHOC
-      ? [
-          { id: "opt_0", title: "Get PDFs" },
-          { id: "opt_1", title: "Schedule class" },
-          { id: "opt_2", title: "Check CGPA" },
-        ]
-      : [
-          { id: "opt_0", title: "Get PDFs" },
-          { id: "opt_1", title: "My timetable" },
-          { id: "opt_2", title: "Check CGPA" },
-        ];
+
+    const menuSections = [
+      {
+        title: "Academics",
+        rows: [
+          {
+            id: "opt_materials",
+            title: "Course materials",
+            description: "Notes, past questions & summaries",
+          },
+          {
+            id: "opt_timetable",
+            title: "My timetable",
+            description: "This week's class schedule",
+          },
+          {
+            id: "opt_assignments",
+            title: "My assignments",
+            description: "Reminders you've saved",
+          },
+          {
+            id: "opt_cgpa",
+            title: "Check CGPA",
+            description: "Your GPA & target progress",
+          },
+          {
+            id: "opt_courses",
+            title: "My courses",
+            description: "Enrolled courses & credits",
+          },
+        ],
+      },
+      ...(student.isHOC
+        ? [
+            {
+              title: "HOC tools",
+              rows: [
+                {
+                  id: "opt_schedule_class",
+                  title: "Schedule a class",
+                  description: "Add a new weekly class time",
+                },
+                {
+                  id: "opt_course_schedule",
+                  title: "Course schedule",
+                  description: "View or edit a course's slots",
+                },
+                {
+                  id: "opt_broadcast",
+                  title: "Broadcast announcement",
+                  description: "Send a message to your whole class",
+                },
+              ],
+            },
+          ]
+        : []),
+    ];
 
     try {
-      await sendWhatsAppButtons(from, {
-        bodyText: `Hey ${firstName}! 👋 How can I help?`,
-        buttons,
+      await sendWhatsAppList(from, {
+        bodyText: `Hey ${firstName}! 👋 What would you like to do?`,
+        buttonText: "Menu",
+        sections: menuSections,
       });
     } catch (err) {
-      logger.error("Failed to send greeting buttons, falling back to text", {
+      logger.error("Failed to send greeting menu, falling back to text", {
         to: from,
         error: err instanceof Error ? err.message : "unknown",
       });
@@ -311,6 +430,71 @@ async function runAgent(
           error: err instanceof Error ? err.message : "Tool execution failed",
         }));
 
+        // Terminal, like reply_with_options: the preview text and Send/Cancel buttons
+        // are built here deterministically — not left to the model's own phrasing —
+        // since audienceCount comes straight from the DB and this is the one message
+        // in the whole bot that fans out to an entire class.
+        if (call.function.name === "preview_broadcast") {
+          const r = result as {
+            success?: boolean;
+            title?: string;
+            message?: string;
+            university?: string;
+            department?: string;
+            level?: string;
+            audienceCount?: number;
+          };
+
+          if (
+            r.success &&
+            r.title &&
+            r.message &&
+            r.department &&
+            r.level &&
+            typeof r.audienceCount === "number"
+          ) {
+            const previewText =
+              `📋 *Broadcast Preview*\n` +
+              `Target: *${r.department} ${r.level}*\n` +
+              `Audience: *${r.audienceCount}* student${r.audienceCount === 1 ? "" : "s"}\n\n` +
+              `"${r.message}"\n\n` +
+              `Ready to send?`;
+
+            setWaSession(from, "IDLE", {
+              pendingBroadcast: {
+                title: r.title,
+                message: r.message,
+                university: r.university,
+                department: r.department,
+                level: r.level,
+                audienceCount: r.audienceCount,
+              },
+            });
+
+            try {
+              await sendWhatsAppButtons(from, {
+                bodyText: previewText,
+                buttons: [
+                  { id: "opt_send_broadcast", title: "Send broadcast" },
+                  { id: "opt_cancel_broadcast", title: "Cancel" },
+                ],
+              });
+              sentViaButtons = true;
+            } catch (err) {
+              logger.error(
+                "Failed to send broadcast preview buttons, falling back to text",
+                { to: from, error: err instanceof Error ? err.message : "unknown" },
+              );
+            }
+            finalReply = previewText;
+          } else {
+            finalReply =
+              (result as { message?: string }).message ??
+              "Couldn't draft that broadcast — only HOCs can send one.";
+          }
+          break outer;
+        }
+
         if (call.function.name === "get_cgpa") {
           const r = result as {
             hasGrades?: boolean;
@@ -331,9 +515,17 @@ async function runAgent(
         }
 
         if (call.function.name === "get_assignments") {
-          const r = result as { assignments?: unknown[] };
-          if (r.assignments && r.assignments.length === 0) {
-            suggestedButton ??= { title: "Add reminder" };
+          const r = result as { assignments?: { completed?: boolean }[] };
+          if (r.assignments) {
+            const incomplete = r.assignments.filter((a) => !a.completed);
+            if (r.assignments.length === 0) {
+              suggestedButton ??= { title: "Add reminder" };
+            } else if (incomplete.length === 1) {
+              // Only suggest when there's exactly one obvious candidate — same
+              // rule as the get_document_link auto-pick: with several incomplete
+              // assignments "Mark done" wouldn't tell the model which one.
+              suggestedButton ??= { title: "Mark done" };
+            }
           }
         }
 
