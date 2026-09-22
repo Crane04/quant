@@ -5,6 +5,7 @@ import {
   renderPdfPageForInspection,
   PDF_PAGE_INSPECTION_SCALE,
 } from "./pdfPageInspectionService";
+import { createPageFingerprint } from "./pdfPageFingerprintService";
 import {
   calculatePageScanQuality,
   MAX_BAD_PAGE_RATIO,
@@ -20,6 +21,9 @@ export const MINIMUM_MEANINGFUL_CONTENT_RATIO = 0.0015;
 
 export type PdfDocumentInspection = {
   isBlank: boolean;
+  pageCount: number;
+  meaningfulPageNumbers: number[];
+  pageFingerprints: string[];
   scanQuality: ScanQualitySummary;
 };
 
@@ -49,6 +53,9 @@ function pageHasMeaningfulContent(grayscale: Float32Array): boolean {
 function getFallbackInspection(): PdfDocumentInspection {
   return {
     isBlank: false,
+    pageCount: 0,
+    meaningfulPageNumbers: [],
+    pageFingerprints: [],
     scanQuality: {
       status: "review",
       badPageCount: 0,
@@ -62,13 +69,20 @@ async function inspectPdfPages(
   pdf: PDFDocumentProxy,
 ): Promise<PdfDocumentInspection> {
   const contentResults: boolean[] = [];
+  const meaningfulPageNumbers: number[] = [];
+  const pageFingerprints: string[] = [];
   const qualityResults: PageScanQuality[] = [];
 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber);
     try {
       const renderedPage = await renderPdfPageForInspection(page);
-      contentResults.push(pageHasMeaningfulContent(renderedPage.grayscale));
+      const hasMeaningfulContent = pageHasMeaningfulContent(
+        renderedPage.grayscale,
+      );
+      contentResults.push(hasMeaningfulContent);
+      if (hasMeaningfulContent) meaningfulPageNumbers.push(pageNumber);
+      pageFingerprints.push(createPageFingerprint(renderedPage));
       qualityResults.push(calculatePageScanQuality(renderedPage));
     } finally {
       page.cleanup();
@@ -78,6 +92,9 @@ async function inspectPdfPages(
   const scanQuality = summarizeScanQuality(qualityResults);
   return {
     isBlank: !contentResults.some(Boolean),
+    pageCount: pdf.numPages,
+    meaningfulPageNumbers,
+    pageFingerprints,
     scanQuality,
   };
 }

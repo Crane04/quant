@@ -8,6 +8,7 @@ import { ensureDefaultRewards } from "./services/rewardService";
 import { startAssignmentReminderScheduler } from "./services/reminderService";
 import { startAnnouncementDeliveryScheduler } from "./services/announcementDeliveryService";
 import { startClassReminderScheduler } from "./services/classReminderService";
+import { startDocumentSemanticValidationWorker } from "./services/documentSemanticValidationWorker";
 
 async function main() {
   await connectDB();
@@ -17,6 +18,7 @@ async function main() {
   startAssignmentReminderScheduler();
   startAnnouncementDeliveryScheduler();
   startClassReminderScheduler();
+  startDocumentSemanticValidationWorker();
 
   const app = createApp();
 

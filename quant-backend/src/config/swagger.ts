@@ -165,7 +165,64 @@ const options: swaggerJsdoc.Options = {
             fileUrl: { type: "string" },
             thumbnailUrl: { type: "string" },
             fileType: { type: "string", example: "pdf" },
-            scanQualityStatus: { type: "string", enum: ["clear", "review"] },
+            pageCount: { type: "integer", minimum: 1 },
+            validation: {
+              type: "object",
+              properties: {
+                status: {
+                  type: "string",
+                  enum: ["pending", "clear", "flagged", "manual_required"],
+                },
+                flags: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      type: {
+                        type: "string",
+                        enum: [
+                          "POTENTIAL_DUPLICATE",
+                          "POOR_SCAN_QUALITY",
+                          "POSSIBLE_SPLIT_UPLOAD_PATTERN",
+                          "NON_ACADEMIC_SUSPECTED",
+                          "COURSE_MISMATCH",
+                          "MIXED_COURSE_MATERIAL",
+                          "POOR_LEGIBILITY",
+                          "AI_VALIDATION_UNCERTAIN",
+                        ],
+                      },
+                      reason: { type: "string" },
+                      matchedDocumentId: { type: "string" },
+                      score: { type: "number", format: "float" },
+                    },
+                  },
+                },
+                semantic: {
+                  type: "object",
+                  properties: {
+                    status: {
+                      type: "string",
+                      enum: [
+                        "not_required",
+                        "queued",
+                        "processing",
+                        "completed",
+                        "manual_required",
+                      ],
+                    },
+                    confidence: { type: "number", format: "float" },
+                    reasons: { type: "array", items: { type: "string" } },
+                    detectedCourseCodes: {
+                      type: "array",
+                      items: { type: "string" },
+                    },
+                    checkedAt: { type: "string", format: "date-time" },
+                    attempts: { type: "integer", minimum: 0 },
+                  },
+                },
+                checkedAt: { type: "string", format: "date-time" },
+              },
+            },
             sizeBytes: { type: "integer" },
             tags: { type: "array", items: { type: "string" } },
             downloadCount: { type: "integer" },

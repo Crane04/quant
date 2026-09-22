@@ -31,6 +31,7 @@ const envSchema = z.object({
 
   GROQ_API_KEY: z.string().optional().default(""),
   GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
+  GROQ_VISION_MODEL: z.string().optional().default(""),
 
   // Base URL this API is reachable at — used to build the /view/:id links sent over WhatsApp.
   // Trailing slash stripped so callers can safely do `${APP_BASE_URL}/view/${id}` without
