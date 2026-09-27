@@ -8,42 +8,12 @@ const validationFlagSchema = new Schema(
         "POTENTIAL_DUPLICATE",
         "POOR_SCAN_QUALITY",
         "POSSIBLE_SPLIT_UPLOAD_PATTERN",
-        "NON_ACADEMIC_SUSPECTED",
-        "COURSE_MISMATCH",
-        "MIXED_COURSE_MATERIAL",
-        "POOR_LEGIBILITY",
-        "AI_VALIDATION_UNCERTAIN",
       ],
       required: true,
     },
     reason: { type: String, trim: true },
     matchedDocumentId: { type: Schema.Types.ObjectId, ref: "DocumentFile" },
     score: { type: Number, min: 0, max: 1 },
-  },
-  { _id: false },
-);
-
-const semanticValidationSchema = new Schema(
-  {
-    status: {
-      type: String,
-      enum: [
-        "not_required",
-        "queued",
-        "processing",
-        "completed",
-        "manual_required",
-      ],
-      required: true,
-    },
-    confidence: { type: Number, min: 0, max: 1 },
-    reasons: { type: [String] },
-    detectedCourseCodes: { type: [String] },
-    checkedAt: { type: Date },
-    attempts: { type: Number, default: 0, min: 0 },
-    sampledPageNumbers: { type: [Number], select: false },
-    processingStartedAt: { type: Date, select: false },
-    nextAttemptAt: { type: Date, select: false },
   },
   { _id: false },
 );
@@ -56,7 +26,6 @@ const documentValidationSchema = new Schema(
       required: true,
     },
     flags: { type: [validationFlagSchema], default: [] },
-    semantic: { type: semanticValidationSchema, required: true },
     checkedAt: { type: Date },
   },
   { _id: false },
@@ -67,7 +36,7 @@ const documentFileSchema = new Schema(
     course: { type: Schema.Types.ObjectId, ref: "Course", required: true },
     title: { type: String, required: true, trim: true },
     fileUrl: { type: String, required: true },
-    fileType: { type: String, required: true }, // "pdf", "docx", "image", ...
+    fileType: { type: String, enum: ["pdf", "docx", "pptx"], required: true },
     fileHash: { type: String }, // SHA-256 of the uploaded file bytes
     pageCount: { type: Number, min: 1 },
     pageFingerprints: { type: [String] },
@@ -122,6 +91,9 @@ const documentFileSchema = new Schema(
         delete result.duplicateCheck;
         delete result.reviewFlags;
         delete result.semanticValidation;
+        if (result.validation) {
+          delete (result.validation as Record<string, unknown>).semantic;
+        }
         return result;
       },
     },
@@ -133,12 +105,6 @@ documentFileSchema.index({ title: "text", tags: "text" });
 documentFileSchema.index({ status: 1, createdAt: -1 });
 documentFileSchema.index({ course: 1, status: 1 });
 documentFileSchema.index({ uploadedByType: 1, uploadedBy: 1, status: 1 });
-documentFileSchema.index({
-  uploadedByType: 1,
-  status: 1,
-  "validation.semantic.status": 1,
-  "validation.semantic.nextAttemptAt": 1,
-});
 documentFileSchema.index({
   uploadedByType: 1,
   uploadedBy: 1,
