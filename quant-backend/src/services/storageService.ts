@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 import { env } from "../config/env";
@@ -33,9 +34,17 @@ export async function uploadFile(
   originalName: string,
   contentType: string,
 ): Promise<{ url: string; key: string }> {
-  assertConfigured();
-
   const key = `documents/${randomUUID()}-${originalName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+
+  return uploadBuffer(buffer, key, contentType);
+}
+
+export async function uploadBuffer(
+  buffer: Buffer,
+  key: string,
+  contentType: string,
+): Promise<{ url: string; key: string }> {
+  assertConfigured();
 
   await client.send(
     new PutObjectCommand({
@@ -54,4 +63,14 @@ export async function deleteFile(key: string): Promise<void> {
   await client.send(
     new DeleteObjectCommand({ Bucket: env.R2_BUCKET, Key: key }),
   );
+}
+
+export async function getFileBuffer(key: string): Promise<Buffer> {
+  assertConfigured();
+  const response = await client.send(
+    new GetObjectCommand({ Bucket: env.R2_BUCKET, Key: key }),
+  );
+  if (!response.Body) throw new Error("Stored file content is unavailable");
+
+  return Buffer.from(await response.Body.transformToByteArray());
 }

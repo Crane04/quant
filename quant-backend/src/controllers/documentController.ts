@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { createHash, randomUUID } from "crypto";
 import { Types } from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler";
 import { sendSuccess } from "../utils/apiResponse";
@@ -8,9 +9,27 @@ import { Course } from "../models/Course";
 import { StudentCourse } from "../models/StudentCourse";
 import { ApiError } from "../utils/ApiError";
 import { findOrCreateCourse } from "../services/courseService";
-import { uploadFile, deleteFile } from "../services/storageService";
+import {
+  uploadBuffer,
+  uploadFile,
+  deleteFile,
+} from "../services/storageService";
+import { PdfValidationError } from "../services/pdfValidationService";
+import {
+  inspectPdfBuffer,
+  shouldRejectForScanQuality,
+} from "../services/pdfBlankDetectionService";
+import { findSuspectedDuplicate } from "../services/pdfDuplicateDetectionService";
+import {
+  hasPossibleSplitUploadPattern,
+  POSSIBLE_SPLIT_UPLOAD_PATTERN,
+} from "../services/splitUploadReviewService";
+import { isGroqVisionConfigured } from "../services/groqDocumentVisionService";
+import { selectSemanticSamplePages } from "../services/pdfSemanticSampleService";
+import { generatePdfThumbnail } from "../services/pdfThumbnailService";
 import { awardPointsForApprovedDocument } from "../services/pointsService";
 import { evaluateBadgesForStudent } from "../services/badgeService";
+import { logger } from "../utils/logger";
 
 function parseTags(tags?: string): string[] {
   if (!tags) return [];
@@ -35,6 +54,61 @@ type UploadDocumentBody = {
   tags?: string;
 };
 
+type ValidationFlag = {
+  type:
+    | "POTENTIAL_DUPLICATE"
+    | "POOR_SCAN_QUALITY"
+    | "POSSIBLE_SPLIT_UPLOAD_PATTERN";
+  reason?: string;
+  matchedDocumentId?: Types.ObjectId;
+  score?: number;
+};
+
+type StudentSafeValidation = {
+  status?: unknown;
+  semantic?: { status?: unknown };
+};
+
+function toStudentSafeDocument(document: {
+  toJSON: () => Record<string, unknown>;
+}): Record<string, unknown> {
+  const result = document.toJSON();
+  const validation = result.validation as StudentSafeValidation | undefined;
+  if (validation) {
+    const studentValidation: Record<string, unknown> = {
+      status: validation.status,
+    };
+    if (validation.semantic?.status !== undefined) {
+      studentValidation.semantic = { status: validation.semantic.status };
+    }
+    result.validation = studentValidation;
+  }
+  return result;
+}
+
+function getFileHash(buffer: Buffer): string {
+  return createHash("sha256").update(buffer).digest("hex");
+}
+
+function duplicateDocumentError(doc: {
+  _id: Types.ObjectId;
+  title: string;
+}) {
+  return ApiError.conflict("This material has already been uploaded", {
+    documentId: doc._id.toString(),
+    title: doc.title,
+  });
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: number }).code === 11000
+  );
+}
+
 async function uploadDocument(
   req: Request,
   uploadedByType: "Admin" | "Student",
@@ -42,6 +116,44 @@ async function uploadDocument(
 ) {
   const file = req.file;
   if (!file) throw ApiError.badRequest("PDF file is required (field 'pdf')");
+
+  const fileHash = getFileHash(file.buffer);
+  const existing = await DocumentFile.findOne({ fileHash }).select("_id title");
+  if (existing) throw duplicateDocumentError(existing);
+
+  let scanQualityStatus: "clear" | "review";
+  let pageCount: number;
+  let meaningfulPageNumbers: number[];
+  let pageFingerprints: string[];
+  try {
+    const inspection = await inspectPdfBuffer(file.buffer);
+    if (inspection.isBlank) {
+      throw ApiError.badRequest(
+        "The uploaded PDF appears to contain only blank pages.",
+      );
+    }
+    if (shouldRejectForScanQuality(inspection.scanQuality)) {
+      throw ApiError.badRequest(
+        "The uploaded PDF scan quality is too poor. Please upload a clearer scan.",
+      );
+    }
+    scanQualityStatus = inspection.scanQuality.status;
+    pageCount = inspection.pageCount;
+    meaningfulPageNumbers = inspection.meaningfulPageNumbers;
+    pageFingerprints = inspection.pageFingerprints;
+  } catch (error) {
+    if (error instanceof PdfValidationError) {
+      if (error.failure === "password-protected") {
+        throw ApiError.badRequest(
+          "This PDF is password-protected. Please upload an unlocked PDF.",
+        );
+      }
+
+      throw ApiError.badRequest("The uploaded file is not a valid PDF.");
+    }
+
+    throw error;
+  }
 
   const body = req.body as UploadDocumentBody;
 
@@ -59,29 +171,149 @@ async function uploadDocument(
       });
   if (!course) throw ApiError.notFound("Course not found");
 
+  const suspectedDuplicate = await findSuspectedDuplicate(
+    course._id,
+    pageFingerprints,
+  );
+  const possibleSplitUpload =
+    uploadedByType === "Student" &&
+    (await hasPossibleSplitUploadPattern({
+      courseId: course._id,
+      uploaderId: uploadedBy,
+      category: body.category,
+      pageCount,
+    }));
+  const shouldSkipSemanticValidation = suspectedDuplicate || possibleSplitUpload;
+  const semanticSamplePageNumbers = selectSemanticSamplePages(
+    pageCount,
+    meaningfulPageNumbers,
+  );
+  const validationFlags: ValidationFlag[] = [];
+  if (scanQualityStatus === "review") {
+    validationFlags.push({
+      type: "POOR_SCAN_QUALITY",
+      reason: "One or more pages need scan-quality review.",
+    });
+  }
+  if (suspectedDuplicate) {
+    validationFlags.push({
+      type: "POTENTIAL_DUPLICATE",
+      reason: "High visual page overlap with an existing document.",
+      matchedDocumentId: suspectedDuplicate.documentId,
+      score: suspectedDuplicate.similarity,
+    });
+  }
+  if (possibleSplitUpload) {
+    validationFlags.push({
+      type: POSSIBLE_SPLIT_UPLOAD_PATTERN,
+      reason: "Several small uploads for this course were submitted recently.",
+    });
+  }
+  const requiresDeterministicReview = validationFlags.length > 0;
+  const semanticStatus =
+    uploadedByType !== "Student" || shouldSkipSemanticValidation
+      ? "not_required"
+      : isGroqVisionConfigured()
+        ? "queued"
+        : "manual_required";
+
   const { url, key } = await uploadFile(
     file.buffer,
     file.originalname,
     file.mimetype,
   );
 
+  let thumbnail: { url: string; key: string } | undefined;
+  let thumbnailKey: string | undefined;
+  try {
+    const thumbnailBuffer = await generatePdfThumbnail(file.buffer);
+    thumbnailKey = `thumbnails/${randomUUID()}.png`;
+    thumbnail = await uploadBuffer(
+      thumbnailBuffer,
+      thumbnailKey,
+      "image/png",
+    );
+  } catch (error) {
+    if (thumbnailKey) {
+      try {
+        await deleteFile(thumbnailKey);
+      } catch (cleanupError) {
+        logger.warn("Failed to clean up document thumbnail", {
+          error:
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : "unknown",
+        });
+      }
+    }
+    logger.warn("Failed to create document thumbnail", {
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  }
+
   // Admin uploads don't need review; student uploads start pending and only earn
   // points once an admin approves them (see reviewDocument below).
-  const status = uploadedByType === "Admin" ? "approved" : "pending";
+  const status =
+    suspectedDuplicate || uploadedByType === "Student" ? "pending" : "approved";
 
-  const doc = await DocumentFile.create({
-    course: course._id,
-    title: body.title,
-    category: body.category,
-    fileUrl: url,
-    fileType: "pdf",
-    sizeBytes: file.size,
-    storageKey: key,
-    tags: parseTags(body.tags),
-    uploadedByType,
-    uploadedBy,
-    status,
-  });
+  let doc;
+  try {
+    doc = await DocumentFile.create({
+      course: course._id,
+      title: body.title,
+      category: body.category,
+      fileUrl: url,
+      fileType: "pdf",
+      fileHash,
+      ...(pageCount > 0 && { pageCount }),
+      pageFingerprints,
+      validation: {
+        status: requiresDeterministicReview
+          ? "flagged"
+          : semanticStatus === "queued"
+            ? "pending"
+            : semanticStatus === "manual_required"
+              ? "manual_required"
+              : "clear",
+        flags: validationFlags,
+        semantic: {
+          status: semanticStatus,
+          attempts: 0,
+          ...(semanticStatus === "queued" && {
+            sampledPageNumbers: semanticSamplePageNumbers,
+          }),
+          ...(semanticStatus === "manual_required" && {
+            reasons: [
+              "Semantic validation is not configured; manual review is required.",
+            ],
+          }),
+        },
+        ...(requiresDeterministicReview && { checkedAt: new Date() }),
+      },
+      ...(thumbnail && {
+        thumbnailUrl: thumbnail.url,
+        thumbnailStorageKey: thumbnail.key,
+      }),
+      sizeBytes: file.size,
+      storageKey: key,
+      tags: parseTags(body.tags),
+      uploadedByType,
+      uploadedBy,
+      status,
+    });
+  } catch (error) {
+    // The unique hash index closes the find-then-create race. Remove the R2
+    // object created by the losing request before returning the duplicate.
+    await deleteFile(key);
+    if (thumbnail?.key) await deleteFile(thumbnail.key);
+    if (isDuplicateKeyError(error)) {
+      const duplicate = await DocumentFile.findOne({ fileHash }).select(
+        "_id title",
+      );
+      if (duplicate) throw duplicateDocumentError(duplicate);
+    }
+    throw error;
+  }
 
   return doc.populate("course");
 }
@@ -103,7 +335,7 @@ export const createMyDocument = asyncHandler(
       );
 
     const populated = await uploadDocument(req, "Student", req.studentId!);
-    sendSuccess(res, populated, undefined, 201);
+    sendSuccess(res, toStudentSafeDocument(populated), undefined, 201);
   },
 );
 
@@ -156,7 +388,12 @@ export const reviewDocument = asyncHandler(
     if (!doc) throw ApiError.notFound("Document not found");
     if (doc.status !== "pending")
       throw ApiError.badRequest("This document has already been reviewed");
-    if (doc.uploadedByType !== "Student") {
+    if (
+      doc.uploadedByType !== "Student" &&
+      !doc.validation?.flags.some(
+        (flag) => flag.type === "POTENTIAL_DUPLICATE",
+      )
+    ) {
       throw ApiError.badRequest("Only student uploads go through review");
     }
 
@@ -166,6 +403,15 @@ export const reviewDocument = asyncHandler(
     if (status === "rejected") {
       doc.status = "rejected";
       doc.rejectionReason = rejectionReason;
+      await doc.save();
+      await doc.populate("course");
+      await doc.populate("uploadedBy", "fullName email phone matricNumber");
+      sendSuccess(res, doc);
+      return;
+    }
+
+    if (doc.uploadedByType === "Admin") {
+      doc.status = "approved";
       await doc.save();
       await doc.populate("course");
       await doc.populate("uploadedBy", "fullName email phone matricNumber");
@@ -222,6 +468,7 @@ export const deleteDocument = asyncHandler(
     const doc = await DocumentFile.findByIdAndDelete(req.params.id);
     if (!doc) throw ApiError.notFound("Document not found");
     if (doc.storageKey) await deleteFile(doc.storageKey);
+    if (doc.thumbnailStorageKey) await deleteFile(doc.thumbnailStorageKey);
     sendSuccess(res, undefined, "Document deleted");
   },
 );
@@ -231,7 +478,7 @@ export const getCourseDocuments = asyncHandler(
     const docs = await DocumentFile.find({ course: req.params.courseId }).sort({
       createdAt: -1,
     });
-    sendSuccess(res, docs);
+    sendSuccess(res, docs.map(toStudentSafeDocument));
   },
 );
 
@@ -264,6 +511,6 @@ export const getMyDocuments = asyncHandler(
       .sort({ createdAt: -1 })
       .limit(100);
 
-    sendSuccess(res, docs);
+    sendSuccess(res, docs.map(toStudentSafeDocument));
   },
 );
