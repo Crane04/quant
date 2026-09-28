@@ -22,7 +22,6 @@ export const MINIMUM_MEANINGFUL_CONTENT_RATIO = 0.0015;
 export type PdfDocumentInspection = {
   isBlank: boolean;
   pageCount: number;
-  meaningfulPageNumbers: number[];
   pageFingerprints: string[];
   scanQuality: ScanQualitySummary;
 };
@@ -54,7 +53,6 @@ function getFallbackInspection(): PdfDocumentInspection {
   return {
     isBlank: false,
     pageCount: 0,
-    meaningfulPageNumbers: [],
     pageFingerprints: [],
     scanQuality: {
       status: "review",
@@ -69,7 +67,6 @@ async function inspectPdfPages(
   pdf: PDFDocumentProxy,
 ): Promise<PdfDocumentInspection> {
   const contentResults: boolean[] = [];
-  const meaningfulPageNumbers: number[] = [];
   const pageFingerprints: string[] = [];
   const qualityResults: PageScanQuality[] = [];
 
@@ -81,7 +78,6 @@ async function inspectPdfPages(
         renderedPage.grayscale,
       );
       contentResults.push(hasMeaningfulContent);
-      if (hasMeaningfulContent) meaningfulPageNumbers.push(pageNumber);
       pageFingerprints.push(createPageFingerprint(renderedPage));
       qualityResults.push(calculatePageScanQuality(renderedPage));
     } finally {
@@ -93,7 +89,6 @@ async function inspectPdfPages(
   return {
     isBlank: !contentResults.some(Boolean),
     pageCount: pdf.numPages,
-    meaningfulPageNumbers,
     pageFingerprints,
     scanQuality,
   };

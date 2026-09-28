@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { resolveStudentContext } from "../middleware/resolveStudentContext";
+import { authenticate } from "../middleware/authenticate";
 import { requireAdminAuth } from "../middleware/requireAdminAuth";
+import { profilePhotoUpload } from "../middleware/upload";
 import { validate } from "../middleware/validate";
 import {
   listStudentsQuerySchema,
@@ -68,6 +70,46 @@ router.patch(
   resolveStudentContext,
   validate({ body: updateMeSchema }),
   studentController.updateMe,
+);
+
+/**
+ * @openapi
+ * /students/me/photo:
+ *   patch:
+ *     tags: [Students]
+ *     summary: Upload or replace the current student's profile photo
+ *     security: [{ studentSession: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [photo]
+ *             properties:
+ *               photo:
+ *                 type: string
+ *                 format: binary
+ *                 description: JPEG, PNG, or WebP image up to 5 MB.
+ *     responses:
+ *       200:
+ *         description: Updated profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessMessage'
+ *                 - type: object
+ *                   properties: { data: { $ref: '#/components/schemas/Student' } }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.patch(
+  "/me/photo",
+  authenticate,
+  profilePhotoUpload.single("photo"),
+  studentController.uploadMyPhoto,
 );
 
 /**

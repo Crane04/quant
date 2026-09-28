@@ -53,7 +53,7 @@ router.get(
  * /documents/mine:
  *   post:
  *     tags: [Documents]
- *     summary: Upload a document as a student (ambassadors only)
+ *     summary: Upload a PDF, DOCX, or PPTX document as a student (ambassadors only)
  *     description: >
  *       Requires the resolved student to have isAmbassador set, regardless of whether
  *       the request came in via a student session or the bot-service key.
@@ -66,7 +66,7 @@ router.get(
  *             type: object
  *             required: [pdf, title, category]
  *             properties:
- *               pdf: { type: string, format: binary }
+ *               pdf: { type: string, format: binary, description: "PDF, DOCX, or PPTX file" }
  *               title: { type: string }
  *               category: { type: string, enum: [lecture_note, exam_summary, past_question, other], description: "Drives the points rate; see /documents/mine POST" }
  *               courseId: { type: string, description: "Existing course id" }
@@ -185,7 +185,7 @@ router.get("/:id", requireAdminAuth, controller.getDocument);
  * /documents:
  *   post:
  *     tags: [Documents]
- *     summary: Upload a document as an admin
+ *     summary: Upload a PDF, DOCX, or PPTX document as an admin
  *     security: [{ adminSession: [] }]
  *     requestBody:
  *       required: true
@@ -195,7 +195,7 @@ router.get("/:id", requireAdminAuth, controller.getDocument);
  *             type: object
  *             required: [pdf, title, category]
  *             properties:
- *               pdf: { type: string, format: binary }
+ *               pdf: { type: string, format: binary, description: "PDF, DOCX, or PPTX file" }
  *               title: { type: string }
  *               category: { type: string, enum: [lecture_note, exam_summary, past_question, other] }
  *               courseId: { type: string }

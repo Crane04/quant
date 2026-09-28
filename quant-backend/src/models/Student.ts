@@ -57,6 +57,8 @@ const studentSchema = new Schema(
     isVerifiedContributor: { type: Boolean, default: false },
 
     lastSeenAt: { type: Date },
+    photoUrl: { type: String },
+    photoStorageKey: { type: String },
 
     // CGPA Intelligence System — the goal the student set for themselves
     // (5.0 scale, matching GRADE_POINTS). Predictive math derives from this
