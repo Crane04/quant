@@ -10,6 +10,7 @@ import {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  changePasswordSchema,
 } from "../validators/authValidators";
 
 const router = Router();
@@ -186,6 +187,36 @@ router.post(
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
 router.post("/logout", authenticate, authController.logout);
+
+/**
+ * @openapi
+ * /auth/change-password:
+ *   patch:
+ *     tags: [Auth]
+ *     summary: Change the current student's password
+ *     description: Revokes all student sessions after a successful password change.
+ *     security: [{ studentSession: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string, format: password }
+ *               newPassword: { type: string, format: password, minLength: 6 }
+ *     responses:
+ *       200: { description: Password changed; re-login required, content: { application/json: { schema: { $ref: '#/components/schemas/SuccessMessage' } } } }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+router.patch(
+  "/change-password",
+  authenticate,
+  validate({ body: changePasswordSchema }),
+  authController.changePassword,
+);
 
 /**
  * @openapi

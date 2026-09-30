@@ -147,6 +147,30 @@ export async function resetPassword(
   await revokeActorSessions("Student", student._id.toString());
 }
 
+export async function changePassword(
+  studentId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const student = await Student.findById(studentId);
+  if (!student) throw ApiError.notFound("Student not found");
+
+  const currentPasswordIsValid = await verifyPassword(
+    currentPassword,
+    student.passwordHash,
+  );
+  if (!currentPasswordIsValid) {
+    throw ApiError.unauthorized("Current password is incorrect");
+  }
+
+  student.passwordHash = await hashPassword(newPassword);
+  await student.save();
+
+  // The session used for this request is also revoked, so the student must
+  // authenticate with the new password before making another request.
+  await revokeActorSessions("Student", student._id.toString());
+}
+
 export async function issueSessionToken(student: StudentDoc) {
   const token = await createSession(
     "Student",

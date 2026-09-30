@@ -54,3 +54,18 @@ export const resetPassword = asyncHandler(
     sendSuccess(res, undefined, "Password reset. Log in with your new password.");
   },
 );
+
+export const changePassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    await authService.changePassword(
+      req.student!.sub,
+      req.body.currentPassword,
+      req.body.newPassword,
+    );
+    sendSuccess(
+      res,
+      undefined,
+      "Password changed. Please log in again with your new password.",
+    );
+  },
+);
