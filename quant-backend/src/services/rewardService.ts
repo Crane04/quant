@@ -6,6 +6,7 @@ import {
 } from "../models/RewardRedemption";
 import { Student } from "../models/Student";
 import { PointsTransaction } from "../models/PointsTransaction";
+import { QuantTransaction } from "../models/QuantTransaction";
 import { ApiError } from "../utils/ApiError";
 import { logger } from "../utils/logger";
 
@@ -16,24 +17,24 @@ const DEFAULT_REWARDS: Array<
 > = [
   {
     key: "tokens_50",
-    name: "50 Quant Tokens",
+    name: "50 Quants",
     description:
-      "Convert your points into 50 tokens to unlock premium platform tools and study features.",
+      "Convert your points into 50 quants to keep chatting with Quant.",
     type: "token_conversion",
     pointsCost: 200,
-    tokensGranted: 50,
+    quantsGranted: 50,
     requiresSize: false,
     sizes: [],
     active: true,
   },
   {
     key: "tokens_100",
-    name: "100 Quant Tokens",
+    name: "100 Quants",
     description:
-      "Bank 100 tokens to access advanced features, detailed study materials, and platform utilities.",
+      "Bank 100 quants to keep chatting with Quant.",
     type: "token_conversion",
     pointsCost: 400,
-    tokensGranted: 100,
+    quantsGranted: 100,
     requiresSize: false,
     sizes: [],
     active: true,
@@ -126,7 +127,7 @@ export async function redeemReward(
 
   student.points -= reward.pointsCost;
   if (reward.type === "token_conversion") {
-    student.tokens += reward.tokensGranted ?? 0;
+    student.quants += reward.quantsGranted ?? 0;
   }
   await student.save();
 
@@ -155,6 +156,18 @@ export async function redeemReward(
     refType: "RewardRedemption",
     refId: redemption._id,
   });
+
+  if (reward.type === "token_conversion" && reward.quantsGranted) {
+    await QuantTransaction.create({
+      student: student._id,
+      type: "reward_conversion",
+      amount: reward.quantsGranted,
+      balanceAfter: student.quants,
+      description: `Redeemed: ${reward.name}`,
+      refType: "RewardRedemption",
+      refId: redemption._id,
+    });
+  }
 
   return redemption;
 }

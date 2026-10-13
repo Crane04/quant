@@ -5,6 +5,7 @@ import { logger } from "./utils/logger";
 import { ensureDefaultAdmin } from "./services/adminAuthService";
 import { ensureDefaultBadges } from "./services/badgeService";
 import { ensureDefaultRewards } from "./services/rewardService";
+import { migrateTokensToQuants } from "./services/quantService";
 import { startAssignmentReminderScheduler } from "./services/reminderService";
 import { startAnnouncementDeliveryScheduler } from "./services/announcementDeliveryService";
 import { startClassReminderScheduler } from "./services/classReminderService";
@@ -13,6 +14,7 @@ async function main() {
   await connectDB();
   await ensureDefaultAdmin();
   await ensureDefaultBadges();
+  await migrateTokensToQuants();
   await ensureDefaultRewards();
   startAssignmentReminderScheduler();
   startAnnouncementDeliveryScheduler();

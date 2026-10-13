@@ -343,14 +343,12 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: "reply_with_options",
       description:
-        "Send your reply along with 1-3 tappable quick-reply buttons for a genuinely useful next " +
-        "action — e.g. suggesting 'Set target' right after showing a CGPA with no target set yet, " +
-        "or offering 'Schedule class' to a HOC when it's contextually relevant. Use this sparingly: " +
-        "most replies should just be plain text (don't call this tool at all). Only reach for it " +
-        "when there's a specific, obvious next step — never as a default menu, and never to list " +
-        "unrelated options just to seem helpful. Each button title must be under 20 characters and " +
-        "read like something the student would tap to continue (e.g. 'Set target', not 'CGPA " +
-        "options'), and tapping one sends that exact title back as their next message.",
+        "Send your reply along with 1-3 tappable answer buttons, for when your reply asks the " +
+        "student a question with a few clear answers — e.g. 'Which semester?' with 'First' / " +
+        "'Second', or a yes/no. Generic next-step suggestions are added automatically, so don't " +
+        "use this for those. Each button title must be under 20 characters and read like " +
+        "something the student would say (tapping one sends that exact title back as their next " +
+        "message).",
       parameters: {
         type: "object",
         properties: {

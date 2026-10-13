@@ -21,11 +21,14 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import {
+  adjustStudentQuants,
   deleteStudent,
   fetchStudentBadges,
   fetchStudentPoints,
   fetchStudentPointsHistory,
+  fetchStudentQuantHistory,
   fetchStudents,
   updateStudent,
 } from "../services/api";
@@ -66,6 +69,158 @@ const buildUpdatePayload = (
   department: form.department.trim(),
   level: form.level,
 });
+
+// Super-admin grant/removal form plus the student's quant ledger.
+function QuantsSection({
+  student,
+  balance,
+}: {
+  student: Student;
+  balance?: number;
+}) {
+  const { admin } = useAuth();
+  const canAdjust = admin?.role === "super_admin";
+  const qc = useQueryClient();
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+
+  const { data: history, isLoading } = useQuery({
+    queryKey: ["quant-history", student.id],
+    queryFn: () => fetchStudentQuantHistory(student.id, 20),
+  });
+
+  const adjustMutation = useMutation({
+    mutationFn: (payload: { amount: number; reason: string }) =>
+      adjustStudentQuants(student.id, payload),
+    onSuccess: ({ balance }, { amount: added }) => {
+      toast.success(
+        `${added > 0 ? "Added" : "Removed"} ${Math.abs(added)} quants — balance ${balance}`,
+      );
+      setAmount("");
+      setReason("");
+      qc.invalidateQueries({ queryKey: ["quant-history", student.id] });
+      qc.invalidateQueries({ queryKey: ["points", student.id] });
+      qc.invalidateQueries({ queryKey: ["students"] });
+    },
+    onError: (err: unknown) => {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })
+        .response?.data?.message;
+      toast.error(apiMessage || "Could not update quants");
+    },
+  });
+
+  // Always a positive amount — the button picked decides add vs remove, and
+  // the change is applied on top of the current balance, never replacing it.
+  const parsedAmount = Number(amount);
+  const amountValid =
+    amount.trim() !== "" && Number.isInteger(parsedAmount) && parsedAmount > 0;
+  const canSubmit = amountValid && !!reason.trim() && !adjustMutation.isPending;
+  const exceedsBalance = balance !== undefined && parsedAmount > balance;
+
+  const submit = (direction: 1 | -1) => (e: FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    adjustMutation.mutate({
+      amount: direction * parsedAmount,
+      reason: reason.trim(),
+    });
+  };
+
+  return (
+    <div>
+      <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">
+        Quants
+      </h3>
+
+      {canAdjust && (
+        <form onSubmit={submit(1)} className="mb-4 space-y-2">
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min={1}
+              step={1}
+              className="input w-28"
+              placeholder="Amount"
+              aria-label="Quants to add or remove"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+            <input
+              className="input flex-1"
+              placeholder="Reason (e.g. Launch bonus)"
+              aria-label="Reason"
+              maxLength={200}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-zinc-500">
+              {balance !== undefined && amountValid
+                ? `Add: ${balance} → ${balance + parsedAmount} · Remove: ${
+                    exceedsBalance
+                      ? "more than their balance"
+                      : `${balance} → ${balance - parsedAmount}`
+                  }`
+                : "Adds to or removes from the current balance."}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="btn-danger whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!canSubmit || exceedsBalance}
+                onClick={submit(-1)}
+              >
+                Remove
+              </button>
+              <button
+                type="submit"
+                className="btn-primary whitespace-nowrap"
+                disabled={!canSubmit}
+              >
+                {adjustMutation.isPending ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Coins size={14} />
+                )}
+                Add
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
+
+      {isLoading ? (
+        <Loader2 size={18} className="animate-spin text-zinc-600" />
+      ) : !history || history.length === 0 ? (
+        <p className="text-sm text-zinc-500">No quant activity yet</p>
+      ) : (
+        <div className="space-y-2">
+          {history.map((entry) => (
+            <div
+              key={entry._id}
+              className="flex items-center justify-between text-sm border-b border-zinc-800/50 pb-2 last:border-0"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-zinc-200 truncate">{entry.description}</p>
+                <p className="text-xs text-zinc-600">
+                  {formatDate(entry.createdAt)}
+                  {entry.adjustedBy?.email ? ` · by ${entry.adjustedBy.email}` : ""}
+                </p>
+              </div>
+              <span
+                className={entry.amount >= 0 ? "text-green-400" : "text-red-400"}
+              >
+                {entry.amount >= 0 ? "+" : ""}
+                {entry.amount}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function StudentDetailModal({
   student,
@@ -117,7 +272,7 @@ function StudentDetailModal({
           {/* Points summary */}
           <div>
             <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">
-              Points & Tokens
+              Points & Quants
             </h3>
             {loadingPoints ? (
               <Loader2 size={18} className="animate-spin text-zinc-600" />
@@ -131,9 +286,9 @@ function StudentDetailModal({
                 </div>
                 <div className="rounded-lg border border-zinc-800 p-3">
                   <p className="text-lg font-semibold text-zinc-100">
-                    {points.tokens}
+                    {points.quants}
                   </p>
-                  <p className="text-xs text-zinc-500">Tokens</p>
+                  <p className="text-xs text-zinc-500">Quants</p>
                 </div>
                 <div className="rounded-lg border border-zinc-800 p-3">
                   <p className="text-lg font-semibold text-zinc-100">
@@ -152,6 +307,8 @@ function StudentDetailModal({
               <p className="text-sm text-zinc-500">No data</p>
             )}
           </div>
+
+          <QuantsSection student={student} balance={points?.quants} />
 
           {/* Points history */}
           <div>
@@ -655,7 +812,7 @@ export default function StudentsPage() {
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
                         <Coins size={11} />
-                        {student.tokens} tokens
+                        {student.quants} quants
                       </div>
                     </td>
 

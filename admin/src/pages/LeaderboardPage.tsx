@@ -78,7 +78,7 @@ export default function LeaderboardPage() {
                   Points
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                  Tokens
+                  Quants
                 </th>
               </tr>
             </thead>
@@ -124,7 +124,7 @@ export default function LeaderboardPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5 text-sm text-zinc-400">
                         <Coins size={13} />
-                        {student.tokens}
+                        {student.quants}
                       </div>
                     </td>
                   </tr>

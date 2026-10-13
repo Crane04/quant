@@ -40,6 +40,17 @@ const envSchema = z.object({
     .default("http://localhost:4000")
     .transform((url) => url.replace(/\/+$/, "")),
 
+  // Quant top-ups. Pricing and the billing on/off switch live in the DB
+  // (QuantPricing), editable from the admin dashboard.
+  FLUTTERWAVE_SECRET_KEY: z.string().optional().default(""),
+  // The "Secret hash" set in the Flutterwave dashboard — sent back on every
+  // webhook as the `verif-hash` header.
+  FLUTTERWAVE_WEBHOOK_HASH: z.string().optional().default(""),
+  // Where Flutterwave sends the student after checkout, with ?status, tx_ref
+  // and transaction_id appended — the website's payment page, which then calls
+  // GET /api/v1/payments/verify. Empty = this API's own /pay/callback page.
+  PAYMENT_REDIRECT_URL: z.string().url().optional().or(z.literal("")).default(""),
+
   RESEND_API_KEY: z.string().optional().default(""),
   MAIL_FROM: z.string().optional().default("Quant <no-reply@quant.app>"),
 

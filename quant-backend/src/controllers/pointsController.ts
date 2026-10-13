@@ -7,12 +7,12 @@ import { PointsTransaction } from "../models/PointsTransaction";
 
 async function getPointsBalance(studentId: string) {
   const student = await Student.findById(studentId).select(
-    "points tokens lifetimePointsEarned uploadStreakDays",
+    "points quants lifetimePointsEarned uploadStreakDays",
   );
   if (!student) throw ApiError.notFound("Student not found");
   return {
     points: student.points,
-    tokens: student.tokens,
+    quants: student.quants,
     lifetimePointsEarned: student.lifetimePointsEarned,
     uploadStreakDays: student.uploadStreakDays,
   };

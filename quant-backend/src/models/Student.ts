@@ -47,7 +47,9 @@ const studentSchema = new Schema(
     // thresholds (e.g. Scholar Elite) survive later spending.
     points: { type: Number, default: 0 },
     lifetimePointsEarned: { type: Number, default: 0 },
-    tokens: { type: Number, default: 0 },
+    // Chat currency (₦1 = 1 quant) — topped up via Flutterwave or reward
+    // conversion, spent per AI reply. Ledger: QuantTransaction.
+    quants: { type: Number, default: 0 },
 
     // Consecutive-day approved-upload streak, for streak badges.
     uploadStreakDays: { type: Number, default: 0 },

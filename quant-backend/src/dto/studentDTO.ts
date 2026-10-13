@@ -17,7 +17,7 @@ export function toStudentDTO(student: StudentDoc) {
     isHOC: student.isHOC,
     photoUrl: student.photoUrl,
     points: student.points,
-    tokens: student.tokens,
+    quants: student.quants,
     referredByCode: student.referredByCode,
     createdAt: student.createdAt,
   };

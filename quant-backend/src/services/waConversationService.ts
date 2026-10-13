@@ -19,12 +19,30 @@ import {
   appendWaHistory,
   WaState,
 } from "./waSession";
-import { completeChat, completeJson, ChatMessage } from "./groqAgentService";
+import {
+  completeChat,
+  completeJson,
+  ChatMessage,
+  GroqUsage,
+} from "./groqAgentService";
+import {
+  balanceText,
+  canAffordMessage,
+  chargeForMessage,
+  detectQuantIntent,
+  getPricing,
+  isLowBalance,
+  isOutOfQuants,
+  parseTopupSelection,
+  sendTopupLink,
+  sendTopupOptions,
+} from "./quantService";
 import { TOOL_DEFINITIONS, HOC_ONLY_TOOLS, executeTool } from "./waTools";
 import { createRegistrationToken } from "./registrationTokenService";
 import { logger } from "../utils/logger";
 import { env } from "../config/env";
 import * as fmt from "./waFormatter";
+import { finalizeSuggestions, suggestionsForTool } from "./waSuggestions";
 
 const MAX_TOOL_ITERATIONS = 5;
 
@@ -39,13 +57,14 @@ async function reply(to: string, message: string): Promise<void> {
   }
 }
 
-function buildSystemPrompt(student: StudentDoc): string {
+function buildSystemPrompt(student: StudentDoc, billingEnabled: boolean): string {
   return `You are Quant, a WhatsApp assistant for university students. You're chatting with:
 - Name: ${student.fullName}
 - University: ${student.university}
 - Department: ${student.department}
 - Level: ${student.level}
 - HOC (Head of Class): ${student.isHOC ? "yes — can schedule/edit/cancel classes" : "no"}
+- Quants balance: ${student.quants}
 Today's date: ${new Date().toISOString().slice(0, 10)} (${new Date().toLocaleDateString("en-US", { weekday: "long" })}) — use this to resolve "today"/"tomorrow"/"next Monday" etc. directly; don't calculate the day of week yourself, read it from here.
 
 Use the available tools to answer instead of guessing — never invent course material, grades,
@@ -95,10 +114,18 @@ itself. Never say you've "sent" or "broadcast" something — only that you've dr
 confirm. Write the title and message yourself from what the HOC tells you; don't ask them to
 reformat it into a template.
 
-reply_with_options exists for the rare moment a specific next action is obviously useful — e.g.
-offering a HOC "Schedule class" when they're talking about their course, or "Set target" right
-after showing a CGPA with none set. It is not a menu: don't reach for it out of habit, and never
-use it just to look proactive. Most replies should stay plain text with no buttons at all.
+Quants are Quant's chat credits (₦1 = 1 quant), topped up by card or bank transfer through
+Flutterwave. ${billingEnabled ? "Each of your replies costs the student some quants — the amount depends on the message, so never quote a fixed per-message price." : "Chatting is currently free; quants will be used once billing starts."}
+If the student asks about quants, their balance, topping up, paying, or pricing, answer briefly
+(their balance is above) and call reply_with_options with a "Top up" button — tapping it shows
+the payment options. If they say they paid but didn't get quants, say quants usually land within
+a minute or two of a successful payment, and that the Quant team can check it if they don't —
+never claim a payment went through or promise a credit yourself.
+
+Quick-reply suggestion buttons are added to your replies automatically, based on the tools you
+used — so don't use reply_with_options for generic next steps. Reach for it only when your reply
+asks the student something with a few clear answers that the automatic buttons can't know — e.g.
+"Which semester?" with "First" / "Second", or a yes/no question.
 
 Keep replies short — this is a WhatsApp chat, not an email. Default to 1-3 sentences. Only use a
 numbered or bulleted list when you're genuinely asking for several distinct pieces of information
@@ -133,6 +160,159 @@ function enqueue(
   });
 
   return next;
+}
+
+// Greetings/menu requests that open the main menu instead of reaching the
+// agent. Matched after stripping punctuation and emoji, so "Hi!", "hello 👋"
+// and "Good morning Quant" all count — but "hi, what's my timetable" doesn't,
+// since anything beyond a greeting + filler words is a real question.
+const GREETING_PHRASES = [
+  "hi",
+  "hii",
+  "hello",
+  "hey",
+  "heyy",
+  "hiya",
+  "sup",
+  "yo",
+  "hola",
+  "howdy",
+  "good morning",
+  "good afternoon",
+  "good evening",
+  "good day",
+  "gm",
+  "morning",
+  "evening",
+  "menu",
+  "main menu",
+  "options",
+  "help",
+  "start",
+  "reset",
+  "restart",
+];
+const GREETING_FILLER = new Set([
+  "quant",
+  "there",
+  "bot",
+  "again",
+  "all",
+  "everyone",
+  "sir",
+  "ma",
+  "bro",
+  "boss",
+  "please",
+  "pls",
+]);
+
+export function isGreeting(input: string): boolean {
+  const words = input
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return false;
+
+  // Longest phrase first, so "good morning" wins over "morning".
+  for (const phrase of [...GREETING_PHRASES].sort((a, b) => b.length - a.length)) {
+    const phraseWords = phrase.split(" ");
+    const head = words.slice(0, phraseWords.length).join(" ");
+    if (head !== phrase) continue;
+    return words.slice(phraseWords.length).every((w) => GREETING_FILLER.has(w));
+  }
+  return false;
+}
+
+async function sendMainMenu(
+  from: string,
+  student: StudentDoc,
+  bodyText: string,
+): Promise<void> {
+  const menuSections = [
+    {
+      title: "Academics",
+      rows: [
+        {
+          id: "opt_materials",
+          title: "Course materials",
+          description: "Notes, past questions & summaries",
+        },
+        {
+          id: "opt_timetable",
+          title: "My timetable",
+          description: "This week's class schedule",
+        },
+        {
+          id: "opt_assignments",
+          title: "My assignments",
+          description: "Reminders you've saved",
+        },
+        {
+          id: "opt_cgpa",
+          title: "Check CGPA",
+          description: "Your GPA & target progress",
+        },
+        {
+          id: "opt_courses",
+          title: "My courses",
+          description: "Enrolled courses & credits",
+        },
+      ],
+    },
+    {
+      title: "Account",
+      rows: [
+        {
+          id: "opt_quants",
+          title: "My quants",
+          description: "Balance & top up",
+        },
+      ],
+    },
+    ...(student.isHOC
+      ? [
+          {
+            title: "HOC tools",
+            rows: [
+              {
+                id: "opt_schedule_class",
+                title: "Schedule a class",
+                description: "Add a new weekly class time",
+              },
+              {
+                id: "opt_course_schedule",
+                title: "Course schedule",
+                description: "View or edit a course's slots",
+              },
+              {
+                id: "opt_broadcast",
+                title: "Broadcast announcement",
+                description: "Send a message to your whole class",
+              },
+            ],
+          },
+        ]
+      : []),
+  ];
+
+  try {
+    await sendWhatsAppList(from, {
+      bodyText,
+      buttonText: "Menu",
+      sections: menuSections,
+    });
+  } catch (err) {
+    logger.error("Failed to send greeting menu, falling back to text", {
+      to: from,
+      error: err instanceof Error ? err.message : "unknown",
+    });
+    await reply(
+      from,
+      `${bodyText}\n\nAsk me anything — course material, your timetable, assignments, CGPA, or enrolling in a course.`,
+    );
+  }
 }
 
 export function processIncomingMessage(
@@ -242,99 +422,56 @@ async function processIncomingMessageInner(
   // Fast, free greeting/reset — no LLM call needed, and fully deterministic
   // (not left to the model's judgment, which turned out to be unreliable at
   // deciding when a quick-reply menu is warranted).
-  const GREETING_WORDS = [
-    "hi",
-    "hello",
-    "hey",
-    "hiya",
-    "sup",
-    "yo",
-    "hola",
-    "menu",
-    "reset",
-    "restart",
-  ];
-  if (GREETING_WORDS.includes(input.toLowerCase())) {
+  if (isGreeting(input)) {
     clearWaSession(from);
     const firstName = student.fullName.split(" ")[0];
-
-    const menuSections = [
-      {
-        title: "Academics",
-        rows: [
-          {
-            id: "opt_materials",
-            title: "Course materials",
-            description: "Notes, past questions & summaries",
-          },
-          {
-            id: "opt_timetable",
-            title: "My timetable",
-            description: "This week's class schedule",
-          },
-          {
-            id: "opt_assignments",
-            title: "My assignments",
-            description: "Reminders you've saved",
-          },
-          {
-            id: "opt_cgpa",
-            title: "Check CGPA",
-            description: "Your GPA & target progress",
-          },
-          {
-            id: "opt_courses",
-            title: "My courses",
-            description: "Enrolled courses & credits",
-          },
-        ],
-      },
-      ...(student.isHOC
-        ? [
-            {
-              title: "HOC tools",
-              rows: [
-                {
-                  id: "opt_schedule_class",
-                  title: "Schedule a class",
-                  description: "Add a new weekly class time",
-                },
-                {
-                  id: "opt_course_schedule",
-                  title: "Course schedule",
-                  description: "View or edit a course's slots",
-                },
-                {
-                  id: "opt_broadcast",
-                  title: "Broadcast announcement",
-                  description: "Send a message to your whole class",
-                },
-              ],
-            },
-          ]
-        : []),
-    ];
-
-    try {
-      await sendWhatsAppList(from, {
-        bodyText: `Hey ${firstName}! 👋 What would you like to do?`,
-        buttonText: "Menu",
-        sections: menuSections,
-      });
-    } catch (err) {
-      logger.error("Failed to send greeting menu, falling back to text", {
-        to: from,
-        error: err instanceof Error ? err.message : "unknown",
-      });
-      await reply(
-        from,
-        `Hey ${firstName}! Ask me anything — course material, your timetable, assignments, CGPA, or enrolling in a course.`,
-      );
-    }
+    await sendMainMenu(from, student, `Hey ${firstName}! 👋 What would you like to do?`);
     return;
   }
 
-  await runAgent(from, student, input);
+  // Quants: balance checks and top-ups are deterministic and free — they never
+  // reach the agent, so a student who's out of quants can always still pay.
+  const topupAmount = parseTopupSelection(input);
+  if (topupAmount) {
+    await sendTopupLink(student, topupAmount);
+    return;
+  }
+  const quantIntent = detectQuantIntent(input);
+  if (quantIntent?.kind === "topup") {
+    if (quantIntent.amount) {
+      await sendTopupLink(student, quantIntent.amount);
+    } else {
+      await sendTopupOptions(from, "How much would you like to top up?");
+    }
+    return;
+  }
+  if (quantIntent?.kind === "balance") {
+    await sendTopupOptions(from, `${balanceText(student.quants)}\n\nWant to top up?`);
+    return;
+  }
+
+  if (!(await canAffordMessage(student, input.length))) {
+    await sendTopupOptions(
+      from,
+      `You're out of quants 💎\n\n${balanceText(student.quants)} Top up to keep chatting:`,
+    );
+    return;
+  }
+
+  const pricing = await getPricing();
+  const usage = await runAgent(from, student, input, {
+    billingEnabled: pricing.billingEnabled,
+    lowBalance: await isLowBalance(student.quants),
+  });
+  if (!usage) return; // the agent failed — never charge for an apology
+
+  const balance = await chargeForMessage(student._id, input.length, usage);
+  if (balance !== null && (await isOutOfQuants(balance))) {
+    await sendTopupOptions(
+      from,
+      `That was your last message for now — you have *${balance} quants* left. Top up to keep chatting:`,
+    );
+  }
 }
 
 // HOC-only tools (schedule/edit/cancel a class) are only offered to HOCs —
@@ -345,19 +482,57 @@ function buildToolDefinitions(student: StudentDoc) {
   return TOOL_DEFINITIONS.filter((t) => !HOC_ONLY_TOOLS.has(t.function.name));
 }
 
+// WhatsApp caps an interactive message's body at 1024 chars — a longer reply
+// goes out as plain text, followed by the buttons on a short prompt of their own.
+const INTERACTIVE_BODY_LIMIT = 1024;
+
+/** Sends a reply with quick-reply buttons. Returns false if the caller should fall back to plain text. */
+async function sendWithSuggestions(
+  from: string,
+  text: string,
+  titles: string[],
+): Promise<boolean> {
+  if (titles.length === 0) return false;
+  const buttons = titles.map((title, idx) => ({ id: `opt_${idx}`, title }));
+  try {
+    if (text.length <= INTERACTIVE_BODY_LIMIT) {
+      await sendWhatsAppButtons(from, { bodyText: text, buttons });
+    } else {
+      await sendWhatsAppText(from, text);
+      await sendWhatsAppButtons(from, { bodyText: "Anything else?", buttons }).catch(
+        (err) =>
+          logger.error("Failed to send follow-up suggestion buttons", {
+            to: from,
+            error: err instanceof Error ? err.message : "unknown",
+          }),
+      );
+    }
+    return true;
+  } catch (err) {
+    logger.error("Failed to send suggestion buttons, falling back to text", {
+      to: from,
+      error: err instanceof Error ? err.message : "unknown",
+    });
+    return false;
+  }
+}
+
+/** Returns the turn's Groq usage, or null if no real answer came back. */
 async function runAgent(
   from: string,
   student: StudentDoc,
   input: string,
-): Promise<void> {
+  billing: { billingEnabled: boolean; lowBalance: boolean },
+): Promise<GroqUsage | null> {
   const history = getWaSession(from).messages;
   const turn: ChatMessage[] = [
-    { role: "system", content: buildSystemPrompt(student) },
+    { role: "system", content: buildSystemPrompt(student, billing.billingEnabled) },
     ...history,
     { role: "user", content: input },
   ];
 
   const tools = buildToolDefinitions(student);
+  const usage: GroqUsage = { promptTokens: 0, completionTokens: 0 };
 
   let finalReply: string | null = null;
   // Set when reply_with_options already delivered the message as a buttons
@@ -366,15 +541,15 @@ async function runAgent(
   // Documents are sent as real attachments the moment the tool resolves them — never
   // routed through the model's own text, so it can't mistype a link or an id.
   const sentFileUrls = new Set<string>();
-  // Deterministic button suggestion, set from a tool's actual result rather than
-  // hoping the model chooses to call reply_with_options — tool-calling models are
-  // trained to reach for tools that fetch/do something, not ones that reformat
-  // their own answer, so relying on it alone turned out to be unreliable in
-  // practice. First match wins if more than one applies in the same turn.
-  let suggestedButton: { title: string } | null = null;
+  // Deterministic quick-reply suggestions, collected from each tool's actual
+  // result rather than hoping the model chooses to call reply_with_options —
+  // tool-calling models are trained to reach for tools that fetch/do something,
+  // not ones that reformat their own answer, so relying on it alone turned out
+  // to be unreliable in practice. See waSuggestions.ts.
+  const suggestions: string[] = [];
 
   outer: for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-    const message = await completeChat(turn, tools);
+    const message = await completeChat(turn, tools, usage);
     if (!message) break;
 
     if (message.tool_calls && message.tool_calls.length > 0) {
@@ -495,39 +670,13 @@ async function runAgent(
           break outer;
         }
 
-        if (call.function.name === "get_cgpa") {
-          const r = result as {
-            hasGrades?: boolean;
-            target?: { status?: string } | null;
-          };
-          if (r.hasGrades && r.target === null) {
-            suggestedButton ??= { title: "Set target" };
-          } else if (r.hasGrades && r.target?.status === "unrealistic") {
-            suggestedButton ??= { title: "Adjust target" };
-          }
-        }
-
-        if (call.function.name === "get_course_schedule" && student.isHOC) {
-          const r = result as { found?: boolean; slots?: unknown[] };
-          if (r.found && r.slots && r.slots.length === 0) {
-            suggestedButton ??= { title: "Schedule class" };
-          }
-        }
-
-        if (call.function.name === "get_assignments") {
-          const r = result as { assignments?: { completed?: boolean }[] };
-          if (r.assignments) {
-            const incomplete = r.assignments.filter((a) => !a.completed);
-            if (r.assignments.length === 0) {
-              suggestedButton ??= { title: "Add reminder" };
-            } else if (incomplete.length === 1) {
-              // Only suggest when there's exactly one obvious candidate — same
-              // rule as the get_document_link auto-pick: with several incomplete
-              // assignments "Mark done" wouldn't tell the model which one.
-              suggestedButton ??= { title: "Mark done" };
-            }
-          }
-        }
+        suggestions.push(
+          ...suggestionsForTool(
+            call.function.name,
+            result as Record<string, unknown>,
+            student,
+          ),
+        );
 
         if (call.function.name === "get_document_link") {
           const r = result as {
@@ -564,6 +713,7 @@ async function runAgent(
     break;
   }
 
+  const answered = !!finalReply;
   if (!finalReply) {
     finalReply =
       "Sorry, I'm having trouble right now — please try again in a moment.";
@@ -579,19 +729,12 @@ async function runAgent(
     if (!finalReply) finalReply = "Here you go!";
   }
 
-  if (!sentViaButtons && suggestedButton) {
-    try {
-      await sendWhatsAppButtons(from, {
-        bodyText: finalReply,
-        buttons: [{ id: "opt_0", title: suggestedButton.title }],
-      });
-      sentViaButtons = true;
-    } catch (err) {
-      logger.error(
-        "Failed to send deterministic suggestion button, falling back to text",
-        { to: from, error: err instanceof Error ? err.message : "unknown" },
-      );
-    }
+  if (!sentViaButtons && answered) {
+    sentViaButtons = await sendWithSuggestions(
+      from,
+      finalReply,
+      finalizeSuggestions(suggestions, { topUp: billing.lowBalance }),
+    );
   }
 
   if (!sentViaButtons) {
@@ -601,6 +744,7 @@ async function runAgent(
     { role: "user", content: input },
     { role: "assistant", content: finalReply },
   ]);
+  return answered ? usage : null;
 }
 
 const REQUIRED_REG_FIELDS = [
@@ -935,6 +1079,7 @@ async function handleRegistration(
         );
         clearWaSession(from);
         await reply(from, fmt.formatEmailVerified(student!));
+        await sendMainMenu(from, student!, "Here's what I can help with 👇");
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "That code didn't work";
