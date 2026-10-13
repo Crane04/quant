@@ -36,7 +36,7 @@ router.get("/", resolveStudentContext, controller.listRewards);
  *     summary: Redeem a reward with points
  *     description: >
  *       Deducts pointsCost from the student's balance. Token-conversion rewards
- *       credit tokens immediately; voucher rewards return a generated code + expiry.
+ *       credit quants immediately; voucher rewards return a generated code + expiry.
  *       Points are never deducted on a validation failure (insufficient points, missing size).
  *     security: [{ studentSession: [] }, { botServiceKey: [] }]
  *     parameters:

@@ -11,7 +11,7 @@ const rewardSchema = new Schema(
       required: true,
     },
     pointsCost: { type: Number, required: true },
-    tokensGranted: { type: Number }, // only for type "token_conversion"
+    quantsGranted: { type: Number }, // only for type "token_conversion"
     requiresSize: { type: Boolean, default: false },
     sizes: { type: [String], default: [] }, // e.g. ["S", "M", "L", "XL"]
     active: { type: Boolean, default: true },

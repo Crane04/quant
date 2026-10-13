@@ -16,7 +16,7 @@ export function toStudentDTO(student: StudentDoc) {
     isVerifiedContributor: student.isVerifiedContributor,
     isHOC: student.isHOC,
     points: student.points,
-    tokens: student.tokens,
+    quants: student.quants,
     referredByCode: student.referredByCode,
     createdAt: student.createdAt,
   };

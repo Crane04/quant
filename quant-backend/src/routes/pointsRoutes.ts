@@ -10,7 +10,7 @@ const router = Router();
  * /points/mine:
  *   get:
  *     tags: [Points]
- *     summary: Get the current student's points/tokens balance
+ *     summary: Get the current student's points/quants balance
  *     security: [{ studentSession: [] }, { botServiceKey: [] }]
  *     responses:
  *       200:
@@ -26,7 +26,7 @@ const router = Router();
  *                       type: object
  *                       properties:
  *                         points: { type: integer }
- *                         tokens: { type: integer }
+ *                         quants: { type: integer }
  *                         lifetimePointsEarned: { type: integer }
  *                         uploadStreakDays: { type: integer }
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -65,7 +65,7 @@ router.get(
  * /points/{studentId}:
  *   get:
  *     tags: [Points]
- *     summary: Get a student's points/tokens balance (admin)
+ *     summary: Get a student's points/quants balance (admin)
  *     security: [{ adminSession: [] }]
  *     parameters:
  *       - { name: studentId, in: path, required: true, schema: { type: string } }
@@ -83,7 +83,7 @@ router.get(
  *                       type: object
  *                       properties:
  *                         points: { type: integer }
- *                         tokens: { type: integer }
+ *                         quants: { type: integer }
  *                         lifetimePointsEarned: { type: integer }
  *                         uploadStreakDays: { type: integer }
  *       401: { $ref: '#/components/responses/Unauthorized' }

@@ -12,6 +12,11 @@ import {
   PDFDoc,
   PointsBalance,
   PointsTransactionEntry,
+  QuantPricing,
+  QuantTransactionEntry,
+  QuantTransactionsResponse,
+  QuantTransactionType,
+  QuantUsageStats,
   RewardRedemption,
   Student,
   StudentsResponse,
@@ -237,6 +242,56 @@ export const fetchAnnouncements = async (filters?: {
 
 export const deleteAnnouncement = async (id: string): Promise<void> => {
   await api.delete(`/announcements/${id}`);
+};
+
+export const fetchQuantPricing = async (): Promise<{
+  pricing: QuantPricing;
+  stats: QuantUsageStats;
+}> => {
+  const { data } = await api.get("/quants/pricing");
+  return data.data;
+};
+
+export const updateQuantPricing = async (
+  updates: Partial<QuantPricing>,
+): Promise<QuantPricing> => {
+  const { data } = await api.put("/quants/pricing", updates);
+  return data.data;
+};
+
+export const fetchStudentQuantHistory = async (
+  studentId: string,
+  limit = 20,
+): Promise<QuantTransactionEntry[]> => {
+  const { data } = await api.get(`/quants/students/${studentId}/history`, {
+    params: { limit },
+  });
+  return data.data;
+};
+
+export const adjustStudentQuants = async (
+  studentId: string,
+  payload: { amount: number; reason: string },
+): Promise<{ balance: number }> => {
+  const { data } = await api.post(
+    `/quants/students/${studentId}/adjust`,
+    payload,
+  );
+  return data.data;
+};
+
+export const fetchQuantTransactions = async (params: {
+  type?: QuantTransactionType[];
+  page?: number;
+  limit?: number;
+}): Promise<QuantTransactionsResponse> => {
+  const { data } = await api.get("/quants/transactions", {
+    params: {
+      ...params,
+      type: params.type?.length ? params.type.join(",") : undefined,
+    },
+  });
+  return data.data;
 };
 
 export type { CourseRef };

@@ -13,6 +13,8 @@ import StudentsPage from "./pages/StudentsPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import RewardsPage from "./pages/RewardsPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
+import QuantPricingPage from "./pages/QuantPricingPage";
+import TransactionsPage from "./pages/TransactionsPage";
 
 const qc = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000 } },
@@ -34,6 +36,8 @@ function ProtectedApp() {
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/rewards" element={<RewardsPage />} />
         <Route path="/announcements" element={<AnnouncementsPage />} />
+        <Route path="/transactions" element={<TransactionsPage />} />
+        <Route path="/quant-pricing" element={<QuantPricingPage />} />
         {admin?.role === "super_admin" && (
           <Route path="/admins" element={<AdminsPage />} />
         )}

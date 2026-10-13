@@ -81,7 +81,7 @@ export interface Student {
   isVerifiedContributor: boolean;
   isHOC: boolean;
   points: number;
-  tokens: number;
+  quants: number;
   createdAt: string;
 }
 
@@ -129,7 +129,7 @@ export interface CoursesResponse {
 
 export interface PointsBalance {
   points: number;
-  tokens: number;
+  quants: number;
   lifetimePointsEarned: number;
   uploadStreakDays: number;
 }
@@ -166,7 +166,7 @@ export interface Reward {
   description: string;
   type: "token_conversion" | "voucher" | "merchandise";
   pointsCost: number;
-  tokensGranted?: number;
+  quantsGranted?: number;
   requiresSize: boolean;
   sizes: string[];
   active: boolean;
@@ -198,4 +198,55 @@ export interface Announcement {
   createdBy: UploaderRef | string | null;
   sentAt?: string | null;
   createdAt: string;
+}
+
+export interface QuantPricing {
+  billingEnabled: boolean;
+  perMessage: number;
+  per100Chars: number;
+  per1kInputTokens: number;
+  per1kOutputTokens: number;
+  maxPerMessage: number; // 0 = no cap
+  updatedAt?: string;
+}
+
+export interface QuantUsageStats {
+  days: number;
+  messages: number;
+  avgCharged: number;
+  avgInputChars: number;
+  avgPromptTokens: number;
+  avgCompletionTokens: number;
+}
+
+export type QuantTransactionType =
+  | "topup"
+  | "chat_message"
+  | "reward_conversion"
+  | "admin_adjustment";
+
+export interface QuantTransactionEntry {
+  _id: string;
+  type: QuantTransactionType;
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  adjustedBy?: { _id: string; email: string } | null;
+  createdAt: string;
+}
+
+export interface QuantTransactionRow extends QuantTransactionEntry {
+  student: { _id: string; fullName: string; phone: string; email: string } | null;
+  // Populated Payment for top-ups (other ref types aren't shown)
+  refId?: { _id: string; amount?: number; txRef?: string } | null;
+  refType?: "Payment" | "RewardRedemption";
+}
+
+export interface QuantTransactionsResponse {
+  items: QuantTransactionRow[];
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+  totals: Partial<Record<QuantTransactionType, { count: number; quants: number }>>;
 }

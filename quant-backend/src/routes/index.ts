@@ -14,6 +14,8 @@ import leaderboardRoutes from "./leaderboardRoutes";
 import badgeRoutes from "./badgeRoutes";
 import rewardRoutes from "./rewardRoutes";
 import announcementRoutes from "./announcementRoutes";
+import quantRoutes from "./quantRoutes";
+import paymentRoutes from "./paymentRoutes";
 
 const router = Router();
 
@@ -32,5 +34,7 @@ router.use("/leaderboard", leaderboardRoutes);
 router.use("/badges", badgeRoutes);
 router.use("/rewards", rewardRoutes);
 router.use("/announcements", announcementRoutes);
+router.use("/quants", quantRoutes);
+router.use("/payments", paymentRoutes);
 
 export default router;

@@ -19,7 +19,11 @@ export type ToolCall = {
 
 type GroqResponse = {
   choices?: Array<{ message?: ChatMessage; finish_reason?: string }>;
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
 };
+
+/** Running Groq token totals across the calls of one agent turn. */
+export type GroqUsage = { promptTokens: number; completionTokens: number };
 
 // Groq's per-minute token limit resets quickly — a 429 usually asks for a
 // retry within tens of milliseconds, not seconds (see the rate_limit_exceeded
@@ -105,6 +109,7 @@ async function fetchGroq(
 export async function completeChat(
   messages: ChatMessage[],
   tools: readonly unknown[],
+  usage?: GroqUsage,
 ): Promise<ChatMessage | null> {
   if (getApiKeys().length === 0) {
     logger.warn("GROQ_API_KEY not configured — agent unavailable");
@@ -134,6 +139,10 @@ export async function completeChat(
   if (!res) return null;
 
   const data = (await res.json()) as GroqResponse;
+  if (usage) {
+    usage.promptTokens += data.usage?.prompt_tokens ?? 0;
+    usage.completionTokens += data.usage?.completion_tokens ?? 0;
+  }
   const choice = data.choices?.[0];
   if (choice?.finish_reason === "length") {
     logger.warn("Groq agent response was truncated by max_tokens", {

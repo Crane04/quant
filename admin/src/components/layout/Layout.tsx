@@ -2,8 +2,10 @@ import { NavLink } from "react-router-dom";
 import {
   Bell,
   BookOpen,
+  Coins,
   FileText,
   Gift,
+  Receipt,
   GraduationCap,
   LayoutDashboard,
   LogOut,
@@ -21,6 +23,8 @@ const navItems = [
   { to: "/students", icon: GraduationCap, label: "Students" },
   { to: "/leaderboard", icon: Trophy, label: "Leaderboard" },
   { to: "/rewards", icon: Gift, label: "Rewards" },
+  { to: "/transactions", icon: Receipt, label: "Transactions" },
+  { to: "/quant-pricing", icon: Coins, label: "Quant Pricing" },
   { to: "/announcements", icon: Bell, label: "Announcements" },
 ];
 
