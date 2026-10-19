@@ -1,4 +1,5 @@
 import { StudentDoc } from "../models/Student";
+import { getAccessStatus } from "../services/accessService";
 
 export function toStudentDTO(student: StudentDoc) {
   return {
@@ -8,6 +9,9 @@ export function toStudentDTO(student: StudentDoc) {
     email: student.email,
     matricNumber: student.matricNumber,
     university: student.university,
+    faculty: student.faculty,
+    // "full", or which waitlist the student is on until their school/faculty launches.
+    accessStatus: getAccessStatus(student),
     department: student.department,
     level: student.level,
     isPhoneVerified: student.isPhoneVerified,

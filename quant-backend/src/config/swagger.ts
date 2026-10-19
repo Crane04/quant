@@ -63,8 +63,15 @@ const options: swaggerJsdoc.Options = {
             email: { type: "string", format: "email" },
             matricNumber: { type: "string" },
             university: { type: "string" },
+            faculty: { type: "string", nullable: true, example: "Engineering" },
             department: { type: "string" },
             level: { type: "string", example: "300" },
+            accessStatus: {
+              type: "string",
+              enum: ["full", "waitlist_school", "waitlist_faculty"],
+              description:
+                "full = LASU Engineering (live). Otherwise the student is waitlisted until their school/faculty launches.",
+            },
             isPhoneVerified: { type: "boolean" },
             isEmailVerified: { type: "boolean" },
             isAmbassador: { type: "boolean" },

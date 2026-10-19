@@ -107,6 +107,9 @@ function renderForm(
       <label>University</label>
       <input name="university" required value="${v("university")}" />
 
+      <label>Faculty</label>
+      <input name="faculty" required value="${v("faculty")}" />
+
       <label>Department</label>
       <input name="department" required value="${v("department")}" />
 
@@ -148,6 +151,7 @@ export async function submitRegistrationForm(
     "email",
     "matricNumber",
     "university",
+    "faculty",
     "department",
     "level",
   ];
@@ -183,6 +187,7 @@ export async function submitRegistrationForm(
     email: body.email.trim().toLowerCase(),
     matricNumber: body.matricNumber.trim(),
     university: body.university.trim(),
+    faculty: body.faculty.trim(),
     department: body.department.trim(),
     level: body.level.trim(),
     referredByCode: body.referredByCode?.trim() || undefined,

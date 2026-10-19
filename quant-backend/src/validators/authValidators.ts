@@ -15,6 +15,8 @@ export const registerSchema = z.object({
   password: z.string().min(6).max(100),
   matricNumber: z.string().min(3).max(30),
   university: z.string().min(2).max(150),
+  // Optional for older clients — inferred from department when missing.
+  faculty: z.string().min(2).max(150).optional(),
   department: z.string().min(2).max(150),
   level: z.string().min(1).max(10),
   referredByCode: z.string().min(1).max(50).optional(),

@@ -90,7 +90,7 @@
               },
               {
                 "type": "TextSubheading",
-                "text": "Select your school, faculty and department"
+                "text": "Select your school, faculty and department. Not listed? Pick Other and type it in."
               },
               {
                 "type": "Dropdown",
@@ -98,8 +98,16 @@
                 "label": "School",
                 "required": true,
                 "data-source": [
-                  { "id": "lasu", "title": "Lagos State University (LASU)" }
+                  { "id": "lasu", "title": "Lagos State University (LASU)" },
+                  { "id": "other", "title": "Other" }
                 ]
+              },
+              {
+                "type": "TextInput",
+                "name": "school_other",
+                "label": "School name (if not listed)",
+                "input-type": "text",
+                "required": false
               },
               {
                 "type": "Dropdown",
@@ -107,8 +115,16 @@
                 "label": "Faculty",
                 "required": true,
                 "data-source": [
-                  { "id": "engineering", "title": "Engineering" }
+                  { "id": "engineering", "title": "Engineering" },
+                  { "id": "other", "title": "Other" }
                 ]
+              },
+              {
+                "type": "TextInput",
+                "name": "faculty_other",
+                "label": "Faculty name (if not listed)",
+                "input-type": "text",
+                "required": false
               },
               {
                 "type": "Dropdown",
@@ -120,8 +136,16 @@
                   { "id": "aerospace_engineering", "title": "Aerospace Engineering" },
                   { "id": "chemical_engineering", "title": "Chemical Engineering" },
                   { "id": "electronics_computer_engineering", "title": "Electronics and Computer Engineering" },
-                  { "id": "mechanical_engineering", "title": "Mechanical Engineering" }
+                  { "id": "mechanical_engineering", "title": "Mechanical Engineering" },
+                  { "id": "other", "title": "Other" }
                 ]
+              },
+              {
+                "type": "TextInput",
+                "name": "department_other",
+                "label": "Department name (if not listed)",
+                "input-type": "text",
+                "required": false
               },
               {
                 "type": "Footer",
@@ -138,7 +162,10 @@
                     "email": "${data.email}",
                     "school": "${form.school}",
                     "faculty": "${form.faculty}",
-                    "department": "${form.department}"
+                    "department": "${form.department}",
+                    "school_other": "${form.school_other}",
+                    "faculty_other": "${form.faculty_other}",
+                    "department_other": "${form.department_other}"
                   }
                 }
               }
@@ -156,7 +183,10 @@
         "email": { "type": "string", "__example__": "ade.balogun@example.com" },
         "school": { "type": "string", "__example__": "lasu" },
         "faculty": { "type": "string", "__example__": "engineering" },
-        "department": { "type": "string", "__example__": "mechanical_engineering" }
+        "department": { "type": "string", "__example__": "mechanical_engineering" },
+        "school_other": { "type": "string", "__example__": "" },
+        "faculty_other": { "type": "string", "__example__": "" },
+        "department_other": { "type": "string", "__example__": "" }
       },
       "layout": {
         "type": "SingleColumnLayout",
@@ -209,6 +239,9 @@
                     "school": "${data.school}",
                     "faculty": "${data.faculty}",
                     "department": "${data.department}",
+                    "school_other": "${data.school_other}",
+                    "faculty_other": "${data.faculty_other}",
+                    "department_other": "${data.department_other}",
                     "matric_number": "${form.matric_number}",
                     "level": "${form.level}"
                   }
@@ -230,6 +263,9 @@
         "school": { "type": "string", "__example__": "lasu" },
         "faculty": { "type": "string", "__example__": "engineering" },
         "department": { "type": "string", "__example__": "mechanical_engineering" },
+        "school_other": { "type": "string", "__example__": "" },
+        "faculty_other": { "type": "string", "__example__": "" },
+        "department_other": { "type": "string", "__example__": "" },
         "matric_number": { "type": "string", "__example__": "200401001" },
         "level": { "type": "string", "__example__": "300" }
       },
@@ -267,6 +303,9 @@
                     "school": "${data.school}",
                     "faculty": "${data.faculty}",
                     "department": "${data.department}",
+                    "school_other": "${data.school_other}",
+                    "faculty_other": "${data.faculty_other}",
+                    "department_other": "${data.department_other}",
                     "matric_number": "${data.matric_number}",
                     "level": "${data.level}",
                     "referral_code": "${form.referral_code}"

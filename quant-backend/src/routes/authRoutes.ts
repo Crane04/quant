@@ -40,6 +40,7 @@ const router = Router();
  *               password: { type: string, format: password, minLength: 6 }
  *               matricNumber: { type: string }
  *               university: { type: string }
+ *               faculty: { type: string, description: "Optional; inferred from department when omitted (\"... Engineering\" -> Engineering)" }
  *               department: { type: string }
  *               level: { type: string, example: "300" }
  *     responses:

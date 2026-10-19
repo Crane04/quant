@@ -73,8 +73,10 @@ export interface Student {
   email: string;
   matricNumber: string;
   university: string;
+  faculty?: string;
   department: string;
   level: string;
+  accessStatus: "full" | "waitlist_school" | "waitlist_faculty";
   isPhoneVerified: boolean;
   isEmailVerified: boolean;
   isAmbassador: boolean;
@@ -223,7 +225,8 @@ export type QuantTransactionType =
   | "topup"
   | "chat_message"
   | "reward_conversion"
-  | "admin_adjustment";
+  | "admin_adjustment"
+  | "signup_bonus";
 
 export interface QuantTransactionEntry {
   _id: string;

@@ -17,6 +17,7 @@ const TRANSACTION_TYPES = [
   "topup",
   "chat_message",
   "reward_conversion",
+  "signup_bonus",
   "admin_adjustment",
 ] as const;
 

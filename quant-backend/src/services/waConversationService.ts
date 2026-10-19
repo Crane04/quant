@@ -4,7 +4,7 @@ import { Announcement } from "../models/Announcement";
 import { deliverAnnouncementNow } from "./announcementDeliveryService";
 import * as authService from "./authService";
 import { verifyOtp, issueOtp } from "./otpService";
-import { sendWelcomeEmailInBackground } from "./mailService";
+import { getAccessStatus, waitlistMessage } from "./accessService";
 import {
   sendWhatsAppText,
   sendWhatsAppDocument,
@@ -354,6 +354,14 @@ async function processIncomingMessageInner(
         ? "AWAITING_EMAIL_OTP"
         : wa.state;
     await handleRegistration(from, input, state, wa.data);
+    return;
+  }
+
+  // Signed up, but their school/faculty isn't live yet — nothing else to do
+  // until launch, so every message gets the waitlist note back.
+  const access = getAccessStatus(student);
+  if (access !== "full") {
+    await reply(from, waitlistMessage(access));
     return;
   }
 
@@ -753,6 +761,7 @@ const REQUIRED_REG_FIELDS = [
   "email",
   "matricNumber",
   "university",
+  "faculty",
   "department",
   "level",
 ] as const;
@@ -761,6 +770,7 @@ const REG_FIELD_LABELS: Record<(typeof REQUIRED_REG_FIELDS)[number], string> = {
   email: "email",
   matricNumber: "matric number",
   university: "university",
+  faculty: "faculty",
   department: "department",
   level: "level",
 };
@@ -773,6 +783,7 @@ Fields:
 - email: a valid email address
 - matricNumber: their matric/student ID number
 - university: school/institution name (e.g. "LASU")
+- faculty: faculty/college the department belongs to (e.g. "Engineering", "Science")
 - department: academic department (e.g. "Mechanical Engineering")
 - level: academic level — must be exactly one of "100", "200", "300", "400", "500"
 
@@ -830,6 +841,7 @@ export interface RegistrationFields {
   email: string;
   matricNumber: string;
   university: string;
+  faculty?: string;
   department: string;
   level: string;
   referredByCode?: string;
@@ -892,6 +904,10 @@ const SCHOOL_NAMES: Record<string, string> = {
   lasu: "LASU",
 };
 
+const FACULTY_NAMES: Record<string, string> = {
+  engineering: "Engineering",
+};
+
 const DEPARTMENT_NAMES: Record<string, string> = {
   aeronautics_astronautics: "Aeronautics and Astronautics Engineering",
   aerospace_engineering: "Aerospace Engineering",
@@ -900,13 +916,28 @@ const DEPARTMENT_NAMES: Record<string, string> = {
   mechanical_engineering: "Mechanical Engineering",
 };
 
+/** A dropdown id -> display name, or the typed-in value when "Other" was picked. */
+function fromDropdown(
+  id: string,
+  typed: string | undefined,
+  names: Record<string, string>,
+): string {
+  if (id === "other") return typed?.trim() || "Other";
+  return names[id] ?? id;
+}
+
 interface FlowRegistrationResponse {
   first_name: string;
   surname: string;
   email: string;
   school: string;
-  faculty: string; // collected but not persisted — Student has no faculty field
+  faculty: string;
   department: string;
+  // Typed in when "Other" is picked from the matching dropdown. Absent on
+  // submissions from the older version of the Flow.
+  school_other?: string;
+  faculty_other?: string;
+  department_other?: string;
   matric_number: string;
   level: string;
   referral_code?: string;
@@ -940,8 +971,13 @@ async function processFlowSubmissionInner(
     fullName: `${data.first_name} ${data.surname}`.trim(),
     email: data.email,
     matricNumber: data.matric_number,
-    university: SCHOOL_NAMES[data.school] ?? data.school,
-    department: DEPARTMENT_NAMES[data.department] ?? data.department,
+    university: fromDropdown(data.school, data.school_other, SCHOOL_NAMES),
+    faculty: fromDropdown(data.faculty, data.faculty_other, FACULTY_NAMES),
+    department: fromDropdown(
+      data.department,
+      data.department_other,
+      DEPARTMENT_NAMES,
+    ),
     level: data.level,
     referredByCode: data.referral_code || undefined,
   });
@@ -1041,6 +1077,7 @@ async function handleRegistration(
         email: merged.email!,
         matricNumber: merged.matricNumber!,
         university: merged.university!,
+        faculty: merged.faculty!,
         department: merged.department!,
         level: merged.level!,
       });
@@ -1079,7 +1116,11 @@ async function handleRegistration(
           { new: true },
         );
         clearWaSession(from);
-        sendWelcomeEmailInBackground(student!.email, student!.fullName);
+        const access = await authService.onEmailVerified(student!);
+        if (access !== "full") {
+          await reply(from, waitlistMessage(access));
+          return;
+        }
         await reply(from, fmt.formatEmailVerified(student!));
         await sendMainMenu(from, student!, "Here's what I can help with 👇");
       } catch (err) {
