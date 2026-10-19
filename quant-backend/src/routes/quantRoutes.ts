@@ -24,7 +24,20 @@ const router = Router();
  *       perMessage + chars/100 × per100Chars + promptTokens/1000 × per1kInputTokens + completionTokens/1000 × per1kOutputTokens
  *     security: [{ adminSession: [] }]
  *     responses:
- *       200: { description: Pricing and usage stats }
+ *       200:
+ *         description: Pricing and usage stats
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessMessage'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         pricing: { $ref: '#/components/schemas/QuantPricing' }
+ *                         stats: { $ref: '#/components/schemas/QuantUsageStats' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
 router.get("/pricing", requireAdminAuth, controller.getQuantPricing);
@@ -50,7 +63,16 @@ router.get("/pricing", requireAdminAuth, controller.getQuantPricing);
  *               per1kOutputTokens: { type: number }
  *               maxPerMessage: { type: number, description: "0 = no cap" }
  *     responses:
- *       200: { description: Updated pricing }
+ *       200:
+ *         description: Updated pricing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessMessage'
+ *                 - type: object
+ *                   properties: { data: { $ref: '#/components/schemas/QuantPricing' } }
+ *       400: { $ref: '#/components/responses/BadRequest' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
  */
@@ -83,7 +105,18 @@ router.put(
  *               amount: { type: integer, description: "Positive adds, negative removes" }
  *               reason: { type: string }
  *     responses:
- *       200: { description: New balance }
+ *       200:
+ *         description: New balance
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessMessage'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties: { balance: { type: integer } }
  *       400: { description: Invalid amount, or removal exceeds balance }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
@@ -108,7 +141,16 @@ router.post(
  *       - { in: path, name: studentId, required: true, schema: { type: string } }
  *       - { in: query, name: limit, schema: { type: integer, default: 20, maximum: 100 } }
  *     responses:
- *       200: { description: Ledger entries, newest first }
+ *       200:
+ *         description: Ledger entries, newest first
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessMessage'
+ *                 - type: object
+ *                   properties:
+ *                     data: { type: array, items: { $ref: '#/components/schemas/QuantTransaction' } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
 router.get(
@@ -131,7 +173,31 @@ router.get(
  *       - { in: query, name: page, schema: { type: integer, default: 1 } }
  *       - { in: query, name: limit, schema: { type: integer, default: 25, maximum: 100 } }
  *     responses:
- *       200: { description: Paginated transactions with totals }
+ *       200:
+ *         description: Paginated transactions with totals
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessMessage'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         items: { type: array, items: { $ref: '#/components/schemas/QuantTransaction' } }
+ *                         page: { type: integer }
+ *                         limit: { type: integer }
+ *                         total: { type: integer }
+ *                         pages: { type: integer }
+ *                         totals:
+ *                           type: object
+ *                           description: "Per transaction type, for the same filter — e.g. { topup: { count: 3, quants: 2500 } }"
+ *                           additionalProperties:
+ *                             type: object
+ *                             properties:
+ *                               count: { type: integer }
+ *                               quants: { type: integer }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
 router.get(

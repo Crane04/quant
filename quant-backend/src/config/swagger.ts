@@ -298,6 +298,102 @@ const options: swaggerJsdoc.Options = {
             sizes: { type: "array", items: { type: "string" } },
           },
         },
+        QuantPricing: {
+          type: "object",
+          description:
+            "Cost of one AI reply in quants (₦1 = 1 quant), rounded up and capped at maxPerMessage: perMessage + chars/100 × per100Chars + promptTokens/1000 × per1kInputTokens + completionTokens/1000 × per1kOutputTokens",
+          properties: {
+            billingEnabled: { type: "boolean" },
+            perMessage: { type: "number", example: 4 },
+            per100Chars: { type: "number", example: 1 },
+            per1kInputTokens: { type: "number", example: 0.3 },
+            per1kOutputTokens: { type: "number", example: 1.5 },
+            maxPerMessage: { type: "number", example: 40, description: "0 = no cap" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        QuantUsageStats: {
+          type: "object",
+          description: "Averages over charged chat messages in the last `days` days",
+          properties: {
+            days: { type: "integer", example: 7 },
+            messages: { type: "integer" },
+            avgCharged: { type: "integer" },
+            avgInputChars: { type: "integer" },
+            avgPromptTokens: { type: "integer" },
+            avgCompletionTokens: { type: "integer" },
+          },
+        },
+        QuantTransaction: {
+          type: "object",
+          properties: {
+            _id: { type: "string" },
+            student: {
+              description: "Student id, or {_id, fullName, phone, email} on /quants/transactions",
+              oneOf: [
+                { type: "string" },
+                {
+                  type: "object",
+                  properties: {
+                    _id: { type: "string" },
+                    fullName: { type: "string" },
+                    phone: { type: "string" },
+                    email: { type: "string" },
+                  },
+                },
+              ],
+            },
+            type: {
+              type: "string",
+              enum: ["topup", "chat_message", "reward_conversion", "admin_adjustment"],
+            },
+            amount: { type: "integer", description: "Positive = credited, negative = spent" },
+            balanceAfter: { type: "integer" },
+            description: { type: "string" },
+            refType: { type: "string", enum: ["Payment", "RewardRedemption"] },
+            refId: {
+              description: "On /quants/transactions, top-ups carry the populated Payment",
+              oneOf: [
+                { type: "string" },
+                {
+                  type: "object",
+                  properties: {
+                    _id: { type: "string" },
+                    amount: { type: "number", description: "NGN paid" },
+                    txRef: { type: "string" },
+                    flutterwaveTransactionId: { type: "integer" },
+                  },
+                },
+              ],
+            },
+            adjustedBy: {
+              type: "object",
+              nullable: true,
+              description: "admin_adjustment only",
+              properties: { _id: { type: "string" }, email: { type: "string" } },
+            },
+            inputChars: { type: "integer", description: "chat_message only" },
+            costBreakdown: {
+              type: "object",
+              description: "chat_message only",
+              properties: {
+                perMessage: { type: "number" },
+                length: { type: "number" },
+                aiTokens: { type: "number" },
+                total: { type: "integer" },
+              },
+            },
+            groqUsage: {
+              type: "object",
+              description: "chat_message only",
+              properties: {
+                promptTokens: { type: "integer" },
+                completionTokens: { type: "integer" },
+              },
+            },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
         RewardRedemption: {
           type: "object",
           properties: {

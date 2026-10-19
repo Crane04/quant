@@ -3,7 +3,8 @@ import { env } from "../config/env";
 import { generateOtpCode, hashOtp } from "../utils/otp";
 import { ApiError } from "../utils/ApiError";
 import { sendWhatsAppText } from "./waService";
-import { sendMail } from "./mailService";
+import { sendOtpEmail } from "./mailService";
+import { Student } from "../models/Student";
 
 type Channel = "phone" | "email";
 type Purpose = "registration" | "email_verification" | "password_reset";
@@ -35,12 +36,17 @@ export async function issueOtp(
     expiresAt,
   });
 
-  const message = `Your Quant verification code is ${code}. It expires in ${env.OTP_EXPIRES_IN_MINUTES} minutes.`;
-
   if (channel === "phone") {
-    await sendWhatsAppText(identifier, message);
+    await sendWhatsAppText(
+      identifier,
+      `Your Quant verification code is ${code}. It expires in ${env.OTP_EXPIRES_IN_MINUTES} minutes.`,
+    );
   } else {
-    await sendMail(identifier, "Your Quant verification code", message);
+    const student = await Student.findOne(
+      { email: identifier.toLowerCase() },
+      { fullName: 1 },
+    );
+    await sendOtpEmail(identifier, student?.fullName ?? "", code);
   }
 }
 

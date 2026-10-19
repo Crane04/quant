@@ -1,3 +1,4 @@
+import path from "path";
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -62,6 +63,17 @@ export function createApp() {
     },
     swaggerUi.serve,
     swaggerUi.setup(swaggerSpec),
+  );
+
+  // Images referenced by the HTML emails. Email clients (and webmail in the
+  // browser) load these from other origins, so helmet's same-origin CORP is relaxed.
+  app.use(
+    "/email-assets",
+    (_req: Request, res: Response, next: NextFunction) => {
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      next();
+    },
+    express.static(path.join(__dirname, "emails/static"), { maxAge: "7d" }),
   );
 
   app.use("/api/v1", routes);

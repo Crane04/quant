@@ -9,6 +9,7 @@ import {
 import { issueOtp, verifyOtp } from "./otpService";
 import { hashPassword, verifyPassword } from "../utils/password";
 import { logger } from "../utils/logger";
+import { sendWelcomeEmailInBackground } from "./mailService";
 
 export interface StudentSessionPayload {
   sub: string;
@@ -86,6 +87,7 @@ export async function verifyEmail(
     { new: true },
   );
   if (!student) throw ApiError.notFound("Student not found");
+  sendWelcomeEmailInBackground(student.email, student.fullName);
   return student;
 }
 
