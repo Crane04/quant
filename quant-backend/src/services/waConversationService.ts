@@ -4,6 +4,7 @@ import { Announcement } from "../models/Announcement";
 import { deliverAnnouncementNow } from "./announcementDeliveryService";
 import * as authService from "./authService";
 import { verifyOtp, issueOtp } from "./otpService";
+import { sendWelcomeEmailInBackground } from "./mailService";
 import {
   sendWhatsAppText,
   sendWhatsAppDocument,
@@ -1078,6 +1079,7 @@ async function handleRegistration(
           { new: true },
         );
         clearWaSession(from);
+        sendWelcomeEmailInBackground(student!.email, student!.fullName);
         await reply(from, fmt.formatEmailVerified(student!));
         await sendMainMenu(from, student!, "Here's what I can help with 👇");
       } catch (err) {

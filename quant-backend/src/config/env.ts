@@ -53,6 +53,13 @@ const envSchema = z.object({
 
   RESEND_API_KEY: z.string().optional().default(""),
   MAIL_FROM: z.string().optional().default("Quant <no-reply@quant.app>"),
+  // Public URL the email images (src/emails/static) are loaded from. Empty =
+  // this API's own /email-assets route, i.e. `${APP_BASE_URL}/email-assets`.
+  EMAIL_ASSET_BASE: z
+    .string()
+    .optional()
+    .default("")
+    .transform((url) => url.replace(/\/+$/, "")),
 
   R2_ACCOUNT_ID: z.string().optional().default(""),
   R2_ACCESS_KEY_ID: z.string().optional().default(""),
