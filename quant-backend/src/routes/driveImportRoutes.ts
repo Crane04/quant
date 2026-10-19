@@ -23,6 +23,8 @@ router.use(requireAdminAuth);
  *       course code in its name (falling back to its folder path), e.g. "MEE301 Week 2.pdf".
  *       Codes the catalogue doesn't have get a new LASU course (title = the code; level,
  *       semester, department and credit units inferred), listed in createdCourses.
+ *       Files with no code at all are saved pending with no course (item status
+ *       "unassigned") for an admin to assign on the Documents page.
  *       Files already in the library (same Drive file, or same file bytes) are skipped.
  *       The link must be shared as "Anyone with the link". Poll GET /drive-imports/{id}
  *       for progress.

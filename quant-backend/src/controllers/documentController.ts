@@ -124,10 +124,14 @@ export const reviewDocument = asyncHandler(
       doc.uploadedByType !== "Student" &&
       (doc.fileType === "pdf" || doc.fileType === undefined) &&
       !doc.validation?.flags.some(
-        (flag) => flag.type === "POTENTIAL_DUPLICATE",
+        (flag) =>
+          flag.type === "POTENTIAL_DUPLICATE" || flag.type === "NEEDS_COURSE",
       )
     ) {
       throw ApiError.badRequest("Only student uploads go through review");
+    }
+    if (status === "approved" && !doc.course) {
+      throw ApiError.badRequest("Assign a course before approving this document");
     }
 
     doc.reviewedBy = new Types.ObjectId(req.admin!.id);
@@ -186,7 +190,12 @@ export const updateDocument = asyncHandler(
     const updates: Record<string, unknown> = {};
     if (title !== undefined) updates.title = title;
     if (tags !== undefined) updates.tags = parseTags(tags);
-    if (courseId !== undefined) updates.course = courseId;
+    if (courseId !== undefined) {
+      if (!(await Course.exists({ _id: courseId }))) {
+        throw ApiError.notFound("Course not found");
+      }
+      updates.course = courseId;
+    }
 
     const doc = await DocumentFile.findByIdAndUpdate(req.params.id, updates, {
       new: true,

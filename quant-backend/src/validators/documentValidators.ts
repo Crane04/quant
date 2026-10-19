@@ -42,7 +42,7 @@ export const createDocumentSchema = z
 export const updateDocumentSchema = z.object({
   title: z.string().min(2).max(200).optional(),
   tags: z.string().optional(),
-  courseId: z.string().optional(),
+  courseId: z.string().regex(/^[a-f0-9]{24}$/i, "Invalid course id").optional(),
 });
 
 export const reviewDocumentSchema = z.object({
