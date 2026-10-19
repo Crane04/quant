@@ -3,7 +3,11 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { sendSuccess } from "../utils/apiResponse";
 import { ApiError } from "../utils/ApiError";
 import { DriveImport } from "../models/DriveImport";
-import { startDriveImport, summarize } from "../services/driveImportService";
+import {
+  failInterruptedImports,
+  startDriveImport,
+  summarize,
+} from "../services/driveImportService";
 
 export const createDriveImport = asyncHandler(
   async (req: Request, res: Response) => {
@@ -18,6 +22,7 @@ export const createDriveImport = asyncHandler(
 
 export const listDriveImports = asyncHandler(
   async (_req: Request, res: Response) => {
+    await failInterruptedImports();
     const jobs = await DriveImport.find()
       .sort({ createdAt: -1 })
       .limit(20)
@@ -34,6 +39,7 @@ export const listDriveImports = asyncHandler(
 
 export const getDriveImport = asyncHandler(
   async (req: Request, res: Response) => {
+    await failInterruptedImports();
     const job = await DriveImport.findById(req.params.id).populate(
       "createdBy",
       "email",
