@@ -38,6 +38,10 @@ const documentFileSchema = new Schema(
     fileUrl: { type: String, required: true },
     fileType: { type: String, enum: ["pdf", "docx", "pptx"], required: true },
     fileHash: { type: String }, // SHA-256 of the uploaded file bytes
+    // Google Drive files known to have this content: the one it was imported
+    // from, plus any identical copies seen since. Re-pasting a folder skips
+    // these without downloading them again.
+    driveFileIds: { type: [String], default: undefined },
     pageCount: { type: Number, min: 1 },
     pageFingerprints: { type: [String] },
     validation: { type: documentValidationSchema },
@@ -116,6 +120,7 @@ documentFileSchema.index({
 // Sparse keeps legacy documents without a hash valid while enforcing exact
 // duplicate protection for all newly uploaded files.
 documentFileSchema.index({ fileHash: 1 }, { unique: true, sparse: true });
+documentFileSchema.index({ driveFileIds: 1 }, { sparse: true });
 
 export type DocumentFileDoc = InferSchemaType<typeof documentFileSchema> & {
   _id: Types.ObjectId;

@@ -16,6 +16,7 @@ import rewardRoutes from "./rewardRoutes";
 import announcementRoutes from "./announcementRoutes";
 import quantRoutes from "./quantRoutes";
 import paymentRoutes from "./paymentRoutes";
+import driveImportRoutes from "./driveImportRoutes";
 
 const router = Router();
 
@@ -36,5 +37,6 @@ router.use("/rewards", rewardRoutes);
 router.use("/announcements", announcementRoutes);
 router.use("/quants", quantRoutes);
 router.use("/payments", paymentRoutes);
+router.use("/drive-imports", driveImportRoutes);
 
 export default router;

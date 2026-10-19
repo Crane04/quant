@@ -8,6 +8,8 @@ import {
   CoursesResponse,
   CourseRef,
   DocumentsResponse,
+  DriveImport,
+  DriveImportCategory,
   LoginResponse,
   PDFDoc,
   PointsBalance,
@@ -138,6 +140,24 @@ export const uploadDocument = async (
   form.append("pdf", file);
   Object.entries(payload).forEach(([k, v]) => form.append(k, String(v)));
   const { data } = await api.post("/documents", form);
+  return data.data;
+};
+
+export const startDriveImport = async (
+  url: string,
+  category: DriveImportCategory,
+): Promise<DriveImport> => {
+  const { data } = await api.post("/drive-imports", { url, category });
+  return data.data;
+};
+
+export const fetchDriveImports = async (): Promise<DriveImport[]> => {
+  const { data } = await api.get("/drive-imports");
+  return data.data;
+};
+
+export const fetchDriveImport = async (id: string): Promise<DriveImport> => {
+  const { data } = await api.get(`/drive-imports/${id}`);
   return data.data;
 };
 

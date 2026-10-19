@@ -253,3 +253,39 @@ export interface QuantTransactionsResponse {
   pages: number;
   totals: Partial<Record<QuantTransactionType, { count: number; quants: number }>>;
 }
+
+export type DriveImportCategory = DocumentCategory | "auto";
+
+export type DriveImportItemStatus =
+  | "pending"
+  | "imported"
+  | "duplicate"
+  | "no_course"
+  | "unsupported"
+  | "failed";
+
+export interface DriveImportItem {
+  driveFileId: string;
+  name: string;
+  path: string;
+  mimeType: string;
+  status: DriveImportItemStatus;
+  reason?: string;
+  courseCode?: string;
+  document?: string;
+}
+
+export interface DriveImport {
+  _id: string;
+  url: string;
+  folderName?: string;
+  category: DriveImportCategory;
+  status: "running" | "completed" | "failed";
+  error?: string;
+  createdCourses?: { code: string; course: string }[];
+  summary: { total: number } & Partial<Record<DriveImportItemStatus, number>>;
+  items?: DriveImportItem[];
+  createdBy?: { _id: string; email: string } | null;
+  createdAt: string;
+  finishedAt?: string;
+}
