@@ -10,6 +10,13 @@ import { issueOtp, verifyOtp } from "./otpService";
 import { hashPassword, verifyPassword } from "../utils/password";
 import { logger } from "../utils/logger";
 import { sendWelcomeEmailInBackground } from "./mailService";
+import { grantSignupBonus } from "./quantService";
+import {
+  AccessStatus,
+  getAccessStatus,
+  normalizeFaculty,
+  normalizeUniversity,
+} from "./accessService";
 
 export interface StudentSessionPayload {
   sub: string;
@@ -23,6 +30,7 @@ interface RegisterInput {
   password: string;
   matricNumber: string;
   university: string;
+  faculty?: string;
   department: string;
   level: string;
   referredByCode?: string;
@@ -53,6 +61,8 @@ export async function registerStudent(
   // flow doesn't verify phone at all: create account -> verify email -> login.
   const student = await Student.create({
     ...rest,
+    university: normalizeUniversity(rest.university),
+    faculty: normalizeFaculty(rest.faculty, rest.department),
     passwordHash,
     isPhoneVerified: isBotOrigin,
   });
@@ -87,8 +97,33 @@ export async function verifyEmail(
     { new: true },
   );
   if (!student) throw ApiError.notFound("Student not found");
-  sendWelcomeEmailInBackground(student.email, student.fullName);
+  await onEmailVerified(student);
   return student;
+}
+
+/**
+ * Everything that happens once a new account is verified, shared by the web
+ * API and the WhatsApp bot. Neither the bonus nor the email blocks verification.
+ */
+export async function onEmailVerified(
+  student: StudentDoc,
+): Promise<AccessStatus> {
+  try {
+    await grantSignupBonus(student._id);
+  } catch (err) {
+    logger.error("Failed to grant signup bonus", {
+      studentId: student._id.toString(),
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  const access = getAccessStatus(student);
+  // The welcome email says the account is ready to use, which isn't true yet
+  // for waitlisted students — they get the waitlist message on WhatsApp instead.
+  if (access === "full") {
+    sendWelcomeEmailInBackground(student.email, student.fullName);
+  }
+  return access;
 }
 
 export async function login(email: string, password: string) {

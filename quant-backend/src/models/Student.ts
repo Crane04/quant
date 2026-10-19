@@ -27,6 +27,9 @@ const studentSchema = new Schema(
     },
     passwordHash: { type: String, required: true },
     university: { type: String, required: true, trim: true },
+    // Optional only for accounts created before signup opened beyond LASU
+    // Engineering — those are treated as full access (see accessService).
+    faculty: { type: String, trim: true },
     department: { type: String, required: true, trim: true },
     level: { type: String, required: true, trim: true }, // e.g. "300"
 

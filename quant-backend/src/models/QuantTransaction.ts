@@ -7,7 +7,13 @@ const quantTransactionSchema = new Schema(
     student: { type: Schema.Types.ObjectId, ref: "Student", required: true },
     type: {
       type: String,
-      enum: ["topup", "chat_message", "reward_conversion", "admin_adjustment"],
+      enum: [
+        "topup",
+        "chat_message",
+        "reward_conversion",
+        "admin_adjustment",
+        "signup_bonus",
+      ],
       required: true,
     },
     amount: { type: Number, required: true }, // positive = credited, negative = spent
@@ -39,6 +45,12 @@ const quantTransactionSchema = new Schema(
 
 quantTransactionSchema.index({ student: 1, createdAt: -1 });
 quantTransactionSchema.index({ type: 1, createdAt: -1 });
+// One signup bonus per student, enforced by the DB so a double verification
+// (web + WhatsApp, or a retried request) can't credit it twice.
+quantTransactionSchema.index(
+  { student: 1 },
+  { unique: true, partialFilterExpression: { type: "signup_bonus" } },
+);
 
 export type QuantTransactionDoc = InferSchemaType<
   typeof quantTransactionSchema

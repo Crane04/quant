@@ -61,6 +61,12 @@ const envSchema = z.object({
     .default("")
     .transform((url) => url.replace(/\/+$/, "")),
 
+  // Drive import (admin portal). Reads folders shared as "Anyone with the link".
+  // The service account (its JSON key file, base64-encoded) is preferred: plain
+  // API-key downloads get throttled by Google after a few hundred MB.
+  GOOGLE_SERVICE_ACCOUNT_JSON_B64: z.string().optional().default(""),
+  GOOGLE_API_KEY: z.string().optional().default(""),
+
   R2_ACCOUNT_ID: z.string().optional().default(""),
   R2_ACCESS_KEY_ID: z.string().optional().default(""),
   R2_SECRET_ACCESS_KEY: z.string().optional().default(""),

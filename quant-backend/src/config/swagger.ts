@@ -63,8 +63,15 @@ const options: swaggerJsdoc.Options = {
             email: { type: "string", format: "email" },
             matricNumber: { type: "string" },
             university: { type: "string" },
+            faculty: { type: "string", nullable: true, example: "Engineering" },
             department: { type: "string" },
             level: { type: "string", example: "300" },
+            accessStatus: {
+              type: "string",
+              enum: ["full", "waitlist_school", "waitlist_faculty"],
+              description:
+                "full = LASU Engineering (live). Otherwise the student is waitlisted until their school/faculty launches.",
+            },
             isPhoneVerified: { type: "boolean" },
             isEmailVerified: { type: "boolean" },
             isAmbassador: { type: "boolean" },
@@ -155,6 +162,56 @@ const options: swaggerJsdoc.Options = {
             title: { type: "string" },
             content: { type: "string" },
             sourceDocument: { type: "string" },
+          },
+        },
+        DriveImport: {
+          type: "object",
+          properties: {
+            _id: { type: "string" },
+            url: { type: "string" },
+            folderName: { type: "string" },
+            category: {
+              type: "string",
+              enum: ["auto", "lecture_note", "exam_summary", "past_question", "other"],
+            },
+            status: { type: "string", enum: ["running", "completed", "failed"] },
+            error: { type: "string" },
+            createdCourses: {
+              type: "array",
+              description:
+                "Courses created for codes the catalogue didn't have (titled with the code, so worth reviewing)",
+              items: {
+                type: "object",
+                properties: { code: { type: "string" }, course: { type: "string" } },
+              },
+            },
+            summary: {
+              type: "object",
+              description: "File count per item status, plus total",
+              example: { total: 12, imported: 8, duplicate: 3, no_course: 1 },
+            },
+            items: {
+              type: "array",
+              description: "Omitted from the list endpoint",
+              items: {
+                type: "object",
+                properties: {
+                  driveFileId: { type: "string" },
+                  name: { type: "string" },
+                  path: { type: "string" },
+                  mimeType: { type: "string" },
+                  status: {
+                    type: "string",
+                    enum: ["pending", "imported", "duplicate", "no_course", "unsupported", "failed"],
+                  },
+                  reason: { type: "string" },
+                  courseCode: { type: "string" },
+                  document: { type: "string" },
+                },
+              },
+            },
+            createdAt: { type: "string", format: "date-time" },
+            finishedAt: { type: "string", format: "date-time" },
           },
         },
         DocumentFile: {

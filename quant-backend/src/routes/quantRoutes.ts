@@ -168,7 +168,7 @@ router.get(
  *     description: Top-ups (with the Flutterwave payment), admin credits/removals, reward conversions and chat charges, plus per-type totals for the same filter.
  *     security: [{ adminSession: [] }]
  *     parameters:
- *       - { in: query, name: type, schema: { type: string }, description: "Comma-separated: topup, admin_adjustment, reward_conversion, chat_message" }
+ *       - { in: query, name: type, schema: { type: string }, description: "Comma-separated: topup, admin_adjustment, reward_conversion, signup_bonus, chat_message" }
  *       - { in: query, name: studentId, schema: { type: string } }
  *       - { in: query, name: page, schema: { type: integer, default: 1 } }
  *       - { in: query, name: limit, schema: { type: integer, default: 25, maximum: 100 } }

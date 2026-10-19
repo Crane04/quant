@@ -211,6 +211,44 @@ export async function adjustQuants(
   return { balance: updated.quants };
 }
 
+export const SIGNUP_BONUS_QUANTS = 1000;
+
+/**
+ * Credits the one-time signup bonus. The ledger row is written first: its
+ * unique index (one signup_bonus per student) is what makes this safe to call
+ * from every verification path. Returns false if the bonus was already given.
+ */
+export async function grantSignupBonus(
+  studentId: Types.ObjectId,
+): Promise<boolean> {
+  let entry;
+  try {
+    entry = await QuantTransaction.create({
+      student: studentId,
+      type: "signup_bonus",
+      amount: SIGNUP_BONUS_QUANTS,
+      balanceAfter: 0, // set below, once the balance has actually moved
+      description: "Welcome bonus",
+    });
+  } catch (err) {
+    if ((err as { code?: number }).code === 11000) return false;
+    throw err;
+  }
+
+  const updated = await Student.findByIdAndUpdate(
+    studentId,
+    { $inc: { quants: SIGNUP_BONUS_QUANTS } },
+    { new: true, projection: { quants: 1 } },
+  );
+  if (!updated) {
+    await entry.deleteOne();
+    return false;
+  }
+  entry.balanceAfter = updated.quants;
+  await entry.save();
+  return true;
+}
+
 export function getQuantHistory(studentId: string, limit: number) {
   return QuantTransaction.find({ student: studentId })
     .sort({ createdAt: -1 })

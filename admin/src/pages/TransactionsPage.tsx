@@ -7,6 +7,7 @@ import {
   Gift,
   Loader2,
   MessageSquare,
+  PartyPopper,
   Receipt,
   ShieldCheck,
 } from "lucide-react";
@@ -14,10 +15,14 @@ import { fetchQuantTransactions } from "../services/api";
 import { QuantTransactionRow, QuantTransactionType } from "../types";
 
 const TABS: { label: string; types: QuantTransactionType[] }[] = [
-  { label: "Credits", types: ["topup", "admin_adjustment", "reward_conversion"] },
+  {
+    label: "Credits",
+    types: ["topup", "admin_adjustment", "reward_conversion", "signup_bonus"],
+  },
   { label: "Top-ups", types: ["topup"] },
   { label: "Admin", types: ["admin_adjustment"] },
   { label: "Rewards", types: ["reward_conversion"] },
+  { label: "Signup bonus", types: ["signup_bonus"] },
   { label: "Chat charges", types: ["chat_message"] },
   { label: "All", types: [] },
 ];
@@ -40,6 +45,11 @@ const TYPE_META: Record<
     label: "Reward",
     icon: Gift,
     className: "bg-amber-500/10 text-amber-400",
+  },
+  signup_bonus: {
+    label: "Signup bonus",
+    icon: PartyPopper,
+    className: "bg-pink-500/10 text-pink-400",
   },
   chat_message: {
     label: "Chat",

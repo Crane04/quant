@@ -9,6 +9,7 @@ import { migrateTokensToQuants } from "./services/quantService";
 import { startAssignmentReminderScheduler } from "./services/reminderService";
 import { startAnnouncementDeliveryScheduler } from "./services/announcementDeliveryService";
 import { startClassReminderScheduler } from "./services/classReminderService";
+import { failInterruptedImports } from "./services/driveImportService";
 
 async function main() {
   await connectDB();
@@ -16,6 +17,7 @@ async function main() {
   await ensureDefaultBadges();
   await migrateTokensToQuants();
   await ensureDefaultRewards();
+  await failInterruptedImports();
   startAssignmentReminderScheduler();
   startAnnouncementDeliveryScheduler();
   startClassReminderScheduler();

@@ -4,6 +4,7 @@ import {
   BookOpen,
   Coins,
   FileText,
+  FolderDown,
   Gift,
   Receipt,
   GraduationCap,
@@ -18,6 +19,7 @@ import { useAuth } from "../../context/AuthContext";
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Overview" },
   { to: "/upload", icon: Upload, label: "Upload PDF" },
+  { to: "/drive-import", icon: FolderDown, label: "Drive Import" },
   { to: "/documents", icon: FileText, label: "Documents" },
   { to: "/courses", icon: BookOpen, label: "Courses" },
   { to: "/students", icon: GraduationCap, label: "Students" },
