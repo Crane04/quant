@@ -56,7 +56,9 @@ export function sendOtpEmail(
 ): Promise<void> {
   return sendMail(
     to,
-    "Your Quant verification code",
+    // Code in the subject lets Gmail/Apple Mail detect it and offer "Copy code"
+    // (and iOS autofill) straight from the notification.
+    `${otp} is your Quant verification code`,
     createElement(OtpEmail, {
       studentName: firstName(fullName),
       otp,

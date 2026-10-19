@@ -101,6 +101,9 @@ const text = {
 };
 
 const code = {
+  // One tap/click selects the whole code, ready to copy (Apple Mail, iOS, most webmail).
+  userSelect: "all" as const,
+  WebkitUserSelect: "all" as const,
   color: "#212121",
   fontSize: "32px",
   letterSpacing: "4px",
