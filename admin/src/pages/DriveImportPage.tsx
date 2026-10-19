@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
-import { FolderDown, Loader2 } from "lucide-react";
+import { ChevronRight, FolderDown, Loader2 } from "lucide-react";
 import {
   fetchDriveImport,
   fetchDriveImports,
@@ -74,46 +74,66 @@ function StatusBadge({ status }: { status: DriveImportItemStatus }) {
   );
 }
 
-function ImportDetail({ job }: { job: DriveImport }) {
-  const [filter, setFilter] = useState(0);
-  const items = job.items ?? [];
+const progressOf = (job: DriveImport) => {
   const done = job.summary.total - (job.summary.pending ?? 0);
   const percent = job.summary.total
     ? Math.round((done / job.summary.total) * 100)
     : 0;
+  return { done, percent };
+};
+
+function ImportStatus({ job }: { job: DriveImport }) {
+  const { done } = progressOf(job);
+  if (job.status === "running") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-brand-400 flex-shrink-0">
+        <Loader2 size={13} className="animate-spin" />
+        Importing {done}/{job.summary.total}
+      </span>
+    );
+  }
+  if (job.status === "failed") {
+    return <span className="text-xs text-red-400 flex-shrink-0">Stopped</span>;
+  }
+  return <span className="text-xs text-green-400 flex-shrink-0">Done</span>;
+}
+
+function SummaryChips({ job }: { job: DriveImport }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {(Object.keys(STATUS_META) as DriveImportItemStatus[])
+        .filter((status) => status !== "pending" && job.summary[status])
+        .map((status) => (
+          <span
+            key={status}
+            className={`px-2 py-0.5 rounded-md text-xs ${STATUS_META[status].className}`}
+          >
+            {job.summary[status]} {STATUS_META[status].label.toLowerCase()}
+          </span>
+        ))}
+    </div>
+  );
+}
+
+/** Notices, filters and the per-file table: only rendered once a row is opened. */
+function ImportBody({ job }: { job: DriveImport }) {
+  const [filter, setFilter] = useState(0);
+  const items = job.items ?? [];
   const statuses = FILTERS[filter].statuses;
   const visible = statuses.length
     ? items.filter((item) => statuses.includes(item.status))
     : items;
 
   return (
-    <div className="card p-6 space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className="text-sm font-medium text-zinc-100 truncate">
-            {job.folderName || "Drive import"}
-          </h2>
-          <a
-            href={job.url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-zinc-500 hover:text-zinc-300 truncate block"
-          >
-            {job.url}
-          </a>
-        </div>
-        {job.status === "running" ? (
-          <span className="flex items-center gap-1.5 text-xs text-brand-400 flex-shrink-0">
-            <Loader2 size={13} className="animate-spin" />
-            Importing {done}/{job.summary.total}
-          </span>
-        ) : job.status === "failed" ? (
-          <span className="text-xs text-red-400 flex-shrink-0">Stopped</span>
-        ) : (
-          <span className="text-xs text-green-400 flex-shrink-0">Done</span>
-        )}
-      </div>
-
+    <div className="space-y-4 pt-4">
+      <a
+        href={job.url}
+        target="_blank"
+        rel="noreferrer"
+        className="text-xs text-zinc-500 hover:text-zinc-300 truncate block"
+      >
+        {job.url}
+      </a>
       {job.error && <p className="text-xs text-red-400">{job.error}</p>}
 
       {(job.summary.unassigned ?? 0) > 0 && (
@@ -149,26 +169,6 @@ function ImportDetail({ job }: { job: DriveImport }) {
         </div>
       )}
 
-      <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-        <div
-          className="h-full bg-brand-600 transition-all"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {(Object.keys(STATUS_META) as DriveImportItemStatus[])
-          .filter((status) => job.summary[status])
-          .map((status) => (
-            <span
-              key={status}
-              className={`px-2.5 py-1 rounded-lg text-xs ${STATUS_META[status].className}`}
-            >
-              {job.summary[status]} {STATUS_META[status].label.toLowerCase()}
-            </span>
-          ))}
-      </div>
-
       <div className="flex items-center gap-1 text-xs">
         {FILTERS.map((f, i) => (
           <button
@@ -185,9 +185,9 @@ function ImportDetail({ job }: { job: DriveImport }) {
         ))}
       </div>
 
-      <div className="border border-zinc-800 rounded-lg overflow-hidden">
+      <div className="border border-zinc-800 rounded-lg overflow-auto max-h-[28rem]">
         <table className="w-full">
-          <thead>
+          <thead className="sticky top-0 bg-zinc-900">
             <tr className="border-b border-zinc-800">
               <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">
                 File
@@ -239,34 +239,106 @@ function ImportDetail({ job }: { job: DriveImport }) {
   );
 }
 
+
+function ImportRow({
+  summary,
+  open,
+  onToggle,
+}: {
+  summary: DriveImport;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  // Per-file items are only fetched for an open row; polled while it runs.
+  const { data: detail } = useQuery({
+    queryKey: ["drive-import", summary._id],
+    queryFn: () => fetchDriveImport(summary._id),
+    enabled: open,
+    refetchInterval: (query) =>
+      query.state.data?.status === "running" ? 2000 : false,
+  });
+  const job = detail ?? summary;
+  const { percent } = progressOf(job);
+
+  return (
+    <div className="card">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full text-left px-5 py-4 space-y-2.5"
+        aria-expanded={open}
+      >
+        <div className="flex items-center gap-3">
+          <ChevronRight
+            size={15}
+            className={`text-zinc-500 flex-shrink-0 transition-transform ${
+              open ? "rotate-90" : ""
+            }`}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-zinc-100 truncate">
+              {job.folderName || "Drive import"}
+            </p>
+            <p className="text-xs text-zinc-500">
+              {job.summary.total} files · {formatDate(job.createdAt)}
+            </p>
+          </div>
+          <ImportStatus job={job} />
+        </div>
+        {job.status === "running" && (
+          <div className="h-1 rounded-full bg-zinc-800 overflow-hidden ml-7">
+            <div
+              className="h-full bg-brand-600 transition-all"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+        )}
+        <div className="ml-7">
+          <SummaryChips job={job} />
+        </div>
+      </button>
+      {open && (
+        <div className="px-5 pb-5 border-t border-zinc-800">
+          {detail ? (
+            <ImportBody job={detail} />
+          ) : (
+            <div className="py-6 flex justify-center">
+              <Loader2 size={16} className="animate-spin text-zinc-500" />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DriveImportPage() {
   const qc = useQueryClient();
   const [url, setUrl] = useState("");
   const [category, setCategory] = useState<DriveImportCategory>("auto");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Collapsed by default; the import just started opens so its progress shows.
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const { data: imports } = useQuery({
     queryKey: ["drive-imports"],
     queryFn: fetchDriveImports,
-  });
-
-  const activeId = selectedId ?? imports?.[0]?._id ?? null;
-  const { data: active } = useQuery({
-    queryKey: ["drive-import", activeId],
-    queryFn: () => fetchDriveImport(activeId!),
-    enabled: Boolean(activeId),
-    // Poll while it runs; refresh the history list once it finishes.
-    refetchInterval: (query) => {
-      if (query.state.data?.status === "running") return 2000;
-      return false;
-    },
+    // Keeps collapsed rows' counts moving while anything is running.
+    refetchInterval: (query) =>
+      query.state.data?.some((job) => job.status === "running") ? 3000 : false,
   });
 
   const start = useMutation({
     mutationFn: () => startDriveImport(url.trim(), category),
     onSuccess: (job) => {
       setUrl("");
-      setSelectedId(job._id);
+      setOpenIds((prev) => new Set(prev).add(job._id));
       toast.success(`Found ${job.summary.total} files, importing…`);
       qc.invalidateQueries({ queryKey: ["drive-imports"] });
     },
@@ -341,34 +413,17 @@ export default function DriveImportPage() {
           </button>
         </form>
 
-        {active && <ImportDetail key={active._id} job={active} />}
-
-        {imports && imports.length > 1 && (
-          <div className="card p-6">
-            <h2 className="text-sm font-medium text-zinc-300 mb-3">
-              Recent imports
-            </h2>
-            <div className="divide-y divide-zinc-800/50">
-              {imports.map((job) => (
-                <button
-                  key={job._id}
-                  onClick={() => setSelectedId(job._id)}
-                  className={`w-full text-left py-2.5 flex items-center justify-between gap-4 transition ${
-                    job._id === activeId
-                      ? "text-brand-400"
-                      : "text-zinc-300 hover:text-zinc-100"
-                  }`}
-                >
-                  <span className="text-sm truncate">
-                    {job.folderName || job.url}
-                  </span>
-                  <span className="text-xs text-zinc-500 flex-shrink-0">
-                    {job.summary.imported ?? 0}/{job.summary.total} imported ·{" "}
-                    {formatDate(job.createdAt)}
-                  </span>
-                </button>
-              ))}
-            </div>
+        {imports && imports.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-medium text-zinc-300">Imports</h2>
+            {imports.map((job) => (
+              <ImportRow
+                key={job._id}
+                summary={job}
+                open={openIds.has(job._id)}
+                onToggle={() => toggle(job._id)}
+              />
+            ))}
           </div>
         )}
       </div>

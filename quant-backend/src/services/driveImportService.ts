@@ -266,7 +266,10 @@ async function runImport(
   };
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
-  await DriveImport.updateOne({ _id: importId }, { status: "completed", finishedAt: new Date() });
+  await DriveImport.updateOne(
+    { _id: importId },
+    { status: "completed", finishedAt: new Date(), $unset: { error: 1 } },
+  );
 }
 
 async function importFile(
@@ -324,10 +327,18 @@ async function importFile(
   }
 }
 
-/** Imports run in-process, so a restart orphans them. Called once on boot. */
+// Every finished file bumps updatedAt, and one file (download + retries +
+// validation) never takes this long — so a running import this quiet has died.
+const STALE_AFTER_MS = 15 * 60 * 1000;
+
+/**
+ * Imports run in-process, so a restart orphans them. Judged by inactivity, not
+ * just "running": during a deploy the new instance boots while the old one is
+ * still finishing its imports. Called on boot and before imports are listed.
+ */
 export async function failInterruptedImports(): Promise<void> {
   await DriveImport.updateMany(
-    { status: "running" },
+    { status: "running", updatedAt: { $lt: new Date(Date.now() - STALE_AFTER_MS) } },
     {
       status: "failed",
       error: "Interrupted by a server restart. Paste the link again; files already imported will be skipped.",
