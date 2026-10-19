@@ -57,7 +57,8 @@ type ValidationFlag = {
   type:
     | "POTENTIAL_DUPLICATE"
     | "POOR_SCAN_QUALITY"
-    | "POSSIBLE_SPLIT_UPLOAD_PATTERN";
+    | "POSSIBLE_SPLIT_UPLOAD_PATTERN"
+    | "NEEDS_COURSE";
   reason?: string;
   matchedDocumentId?: Types.ObjectId;
   score?: number;
@@ -96,7 +97,9 @@ export async function ingestDocument(
   body: UploadDocumentBody,
   uploadedByType: "Admin" | "Student",
   uploadedBy: string,
-  source: { driveFileId?: string } = {},
+  // withoutCourse: save with no course for an admin to assign (Drive imports
+  // that couldn't work one out). Pending until then.
+  source: { driveFileId?: string; withoutCourse?: boolean } = {},
 ) {
 
   const fileType = getDocumentFileType(file.mimetype);
@@ -155,7 +158,9 @@ export async function ingestDocument(
     }
   }
 
-  const course = body.courseId
+  const course = source.withoutCourse
+    ? null
+    : body.courseId
     ? await Course.findById(body.courseId)
     : await findOrCreateCourse({
         code: body.courseCode!,
@@ -167,13 +172,15 @@ export async function ingestDocument(
         semester: body.semester!,
         creditUnits: body.creditUnits!,
       });
-  if (!course) throw ApiError.notFound("Course not found");
+  if (!course && !source.withoutCourse) throw ApiError.notFound("Course not found");
 
+  // Both checks compare within a course, so they wait until one is assigned.
   const suspectedDuplicate =
-    fileType === "pdf" && pageFingerprints
+    course && fileType === "pdf" && pageFingerprints
       ? await findSuspectedDuplicate(course._id, pageFingerprints)
       : undefined;
   const possibleSplitUpload =
+    course &&
     fileType === "pdf" &&
     uploadedByType === "Student" &&
     pageCount !== undefined &&
@@ -202,6 +209,12 @@ export async function ingestDocument(
     validationFlags.push({
       type: POSSIBLE_SPLIT_UPLOAD_PATTERN,
       reason: "Several small uploads for this course were submitted recently.",
+    });
+  }
+  if (!course) {
+    validationFlags.push({
+      type: "NEEDS_COURSE",
+      reason: "No course code in the file or folder name. Assign a course, then approve.",
     });
   }
   const requiresDeterministicReview = validationFlags.length > 0;
@@ -245,14 +258,14 @@ export async function ingestDocument(
   // Existing Admin PDF uploads remain auto-approved. Office uploads cannot receive
   // PDF-only inspection in V1, so they always enter normal Admin review.
   const status =
-    fileType !== "pdf" || suspectedDuplicate || uploadedByType === "Student"
+    fileType !== "pdf" || suspectedDuplicate || !course || uploadedByType === "Student"
       ? "pending"
       : "approved";
 
   let doc;
   try {
     doc = await DocumentFile.create({
-      course: course._id,
+      ...(course && { course: course._id }),
       title: body.title,
       category: body.category,
       fileUrl: url,

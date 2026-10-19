@@ -259,6 +259,7 @@ export type DriveImportCategory = DocumentCategory | "auto";
 export type DriveImportItemStatus =
   | "pending"
   | "imported"
+  | "unassigned"
   | "duplicate"
   | "no_course"
   | "unsupported"

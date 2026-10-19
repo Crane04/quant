@@ -202,7 +202,8 @@ const options: swaggerJsdoc.Options = {
                   mimeType: { type: "string" },
                   status: {
                     type: "string",
-                    enum: ["pending", "imported", "duplicate", "no_course", "unsupported", "failed"],
+                    enum: ["pending", "imported", "unassigned", "duplicate", "no_course", "unsupported", "failed"],
+                    description: "unassigned = saved pending with no course (no code in its name); an admin assigns one",
                   },
                   reason: { type: "string" },
                   courseCode: { type: "string" },
@@ -218,7 +219,11 @@ const options: swaggerJsdoc.Options = {
           type: "object",
           properties: {
             _id: { type: "string" },
-            course: { $ref: "#/components/schemas/Course" },
+            course: {
+              allOf: [{ $ref: "#/components/schemas/Course" }],
+              nullable: true,
+              description: "Null for a Drive import with no course code in its name (pending, flagged NEEDS_COURSE)",
+            },
             title: { type: "string" },
             fileUrl: { type: "string" },
             thumbnailUrl: { type: "string" },
@@ -242,6 +247,7 @@ const options: swaggerJsdoc.Options = {
                           "POTENTIAL_DUPLICATE",
                           "POOR_SCAN_QUALITY",
                           "POSSIBLE_SPLIT_UPLOAD_PATTERN",
+                          "NEEDS_COURSE",
                         ],
                       },
                       reason: { type: "string" },

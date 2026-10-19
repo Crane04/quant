@@ -4,7 +4,8 @@ export const DRIVE_IMPORT_ITEM_STATUSES = [
   "pending",
   "imported",
   "duplicate", // already in the library (same Drive file or same file bytes)
-  "no_course", // no known course code in the file name or folder path
+  "unassigned", // saved pending without a course (no code in its name) for an admin to assign
+  "no_course", // older imports: skipped for having no course code
   "unsupported", // not a PDF/DOCX/PPTX/Google Doc/Google Slides
   "failed",
 ] as const;

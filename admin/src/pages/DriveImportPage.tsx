@@ -29,6 +29,10 @@ const STATUS_META: Record<
 > = {
   pending: { label: "Waiting", className: "bg-zinc-700/40 text-zinc-400" },
   imported: { label: "Imported", className: "bg-green-500/10 text-green-400" },
+  unassigned: {
+    label: "Saved, needs course",
+    className: "bg-amber-500/10 text-amber-400",
+  },
   duplicate: {
     label: "Already have it",
     className: "bg-zinc-700/40 text-zinc-300",
@@ -46,9 +50,9 @@ const STATUS_META: Record<
 
 const FILTERS: { label: string; statuses: DriveImportItemStatus[] }[] = [
   { label: "All", statuses: [] },
-  { label: "Imported", statuses: ["imported"] },
+  { label: "Imported", statuses: ["imported", "unassigned"] },
   { label: "Skipped", statuses: ["duplicate", "unsupported"] },
-  { label: "Needs attention", statuses: ["no_course", "failed"] },
+  { label: "Needs attention", statuses: ["unassigned", "no_course", "failed"] },
 ];
 
 const formatDate = (value: string) =>
@@ -111,6 +115,21 @@ function ImportDetail({ job }: { job: DriveImport }) {
       </div>
 
       {job.error && <p className="text-xs text-red-400">{job.error}</p>}
+
+      {(job.summary.unassigned ?? 0) > 0 && (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+          <p className="text-xs text-amber-300">
+            {job.summary.unassigned} file
+            {job.summary.unassigned === 1 ? " has" : "s have"} no course code,
+            so {job.summary.unassigned === 1 ? "it was" : "they were"} saved as
+            pending without a course. Set one for each in{" "}
+            <Link to="/documents" className="underline hover:text-amber-200">
+              Documents
+            </Link>{" "}
+            (Pending Review), then approve.
+          </p>
+        </div>
+      )}
 
       {job.createdCourses && job.createdCourses.length > 0 && (
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
@@ -288,7 +307,8 @@ export default function DriveImportPage() {
             <p className="text-xs text-zinc-600 mt-1">
               The link must be shared as "Anyone with the link". Each file's
               course comes from the course code in its name (e.g. "MEE301
-              Week 2.pdf") or its folder.
+              Week 2.pdf") or its folder. Files with no code are saved for
+              review in Documents, where you can set their course.
             </p>
           </div>
           <div className="max-w-xs">

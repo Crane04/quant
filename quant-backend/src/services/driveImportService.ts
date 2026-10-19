@@ -213,7 +213,7 @@ async function runImport(
   );
 
   // Everything that can be decided without downloading is settled first.
-  const toDownload: { file: DriveFile; course: CourseRef }[] = [];
+  const toDownload: { file: DriveFile; course: CourseRef | null }[] = [];
   for (const file of files) {
     if (alreadyImported.has(file.id)) {
       await setItem(importId, file.id, { status: "duplicate", reason: "Already imported" });
@@ -237,14 +237,9 @@ async function runImport(
         createdCourses.push(course);
       }
     }
-    if (!course) {
-      await setItem(importId, file.id, {
-        status: "no_course",
-        reason: "No course code in the file or folder name",
-      });
-      continue;
-    }
-    toDownload.push({ file, course });
+    // No code to go on: still imported, but pending with no course for an
+    // admin to assign on the Documents page.
+    toDownload.push({ file, course: course ?? null });
   }
 
   if (createdCourses.length) {
@@ -258,9 +253,14 @@ async function runImport(
   const worker = async () => {
     while (next < toDownload.length) {
       const { file, course } = toDownload[next++];
+      const result = await importFile(file, course?._id ?? null, category, adminId);
       await setItem(importId, file.id, {
-        ...(await importFile(file, course._id, category, adminId)),
-        courseCode: course.code,
+        ...(course
+          ? result
+          : result.status === "imported"
+          ? { ...result, status: "unassigned", reason: "Saved without a course — assign one in Documents" }
+          : result),
+        courseCode: course?.code,
       });
     }
   };
@@ -271,7 +271,7 @@ async function runImport(
 
 async function importFile(
   file: DriveFile,
-  courseId: Types.ObjectId,
+  courseId: Types.ObjectId | null,
   category: Category | "auto",
   adminId: string,
 ): Promise<{ status: ItemStatus; reason?: string; document?: Types.ObjectId }> {
@@ -289,11 +289,11 @@ async function importFile(
       {
         title: titleFromName(file.name),
         category: category === "auto" ? categoryFromName(file.name, file.path) : category,
-        courseId: courseId.toString(),
+        ...(courseId && { courseId: courseId.toString() }),
       },
       "Admin",
       adminId,
-      { driveFileId: file.id },
+      { driveFileId: file.id, withoutCourse: !courseId },
     );
     return { status: "imported", document: doc._id };
   } catch (err) {

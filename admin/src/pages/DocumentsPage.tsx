@@ -23,6 +23,7 @@ import {
   reviewDocument,
 } from "../services/api";
 import { DocumentStatus, PDFDoc } from "../types";
+import CourseAssigner from "../components/CourseAssigner";
 
 const LEVELS = ["", "100", "200", "300", "400", "500"];
 const SEMESTERS = ["", "first", "second"];
@@ -123,7 +124,11 @@ export default function DocumentsPage() {
       setRejectingDocId(null);
       setRejectionReason("");
     },
-    onError: () => toast.error("Review failed"),
+    onError: (err: unknown) => {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })
+        .response?.data?.message;
+      toast.error(apiMessage || "Review failed");
+    },
   });
 
   const docs = data?.data || [];
@@ -379,9 +384,7 @@ export default function DocumentsPage() {
                           </span>
                         </>
                       ) : (
-                        <p className="text-sm text-zinc-600 italic">
-                          Deleted course
-                        </p>
+                        <CourseAssigner documentId={doc._id} />
                       )}
                     </td>
 
@@ -465,9 +468,9 @@ export default function DocumentsPage() {
                               <button
                                 type="button"
                                 onClick={() => approve(doc)}
-                                disabled={reviewMutation.isPending}
-                                className="p-2 rounded-lg text-green-400 hover:bg-green-500/10 transition disabled:opacity-40"
-                                title="Approve"
+                                disabled={reviewMutation.isPending || !doc.course}
+                                className="p-2 rounded-lg text-green-400 hover:bg-green-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                title={doc.course ? "Approve" : "Set a course before approving"}
                               >
                                 <Check size={15} />
                               </button>

@@ -8,6 +8,7 @@ const validationFlagSchema = new Schema(
         "POTENTIAL_DUPLICATE",
         "POOR_SCAN_QUALITY",
         "POSSIBLE_SPLIT_UPLOAD_PATTERN",
+        "NEEDS_COURSE",
       ],
       required: true,
     },
@@ -33,7 +34,11 @@ const documentValidationSchema = new Schema(
 
 const documentFileSchema = new Schema(
   {
-    course: { type: Schema.Types.ObjectId, ref: "Course", required: true },
+    // Missing only for Drive imports whose file/folder names had no course code:
+    // saved pending (NEEDS_COURSE flag) and can't be approved until an admin
+    // assigns one. Every student-facing query filters by course, so these never
+    // reach students.
+    course: { type: Schema.Types.ObjectId, ref: "Course" },
     title: { type: String, required: true, trim: true },
     fileUrl: { type: String, required: true },
     fileType: { type: String, enum: ["pdf", "docx", "pptx"], required: true },
