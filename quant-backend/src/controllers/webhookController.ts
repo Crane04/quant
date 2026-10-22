@@ -103,7 +103,11 @@ export function handleIncoming(req: Request, res: Response): void {
 
     if (!body.trim()) continue;
 
-    processIncomingMessage(from, body).catch((err) => {
+    const replyId =
+      message.interactive?.button_reply?.id ??
+      message.interactive?.list_reply?.id;
+
+    processIncomingMessage(from, body, replyId).catch((err) => {
       logger.error("WhatsApp webhook processing failed", {
         from,
         error: err instanceof Error ? err.message : "Unknown webhook error",

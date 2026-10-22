@@ -34,6 +34,12 @@ export const TOOL_DEFINITIONS = [
             description:
               "A keyword/topic to search by, if no course code was given",
           },
+          category: {
+            type: "string",
+            enum: ["lecture_note", "exam_summary", "past_question", "other"],
+            description:
+              "Only if the student asked for a specific kind, e.g. past questions",
+          },
         },
       },
     },
@@ -397,9 +403,14 @@ async function latestEnrollmentPeriod(
   };
 }
 
+// How many matches the document picker can page through — past this the
+// student is better off narrowing by topic or category.
+export const MAX_SEARCH_RESULTS = 50;
+
 export async function searchCourseMaterials(args: {
   courseCode?: string;
   topic?: string;
+  category?: string;
 }) {
   // Deliberately not scoped to the student's own (university, department, level) —
   // students can be taking a course outside their own class (carryovers, borrowed
@@ -419,15 +430,20 @@ export async function searchCourseMaterials(args: {
   const filter: Record<string, unknown> = { status: "approved" };
   if (courseIds) filter.course = { $in: courseIds };
   if (args.topic) filter.$text = { $search: args.topic };
+  if (args.category) filter.category = args.category;
 
-  const docs = await DocumentFile.find(filter)
-    .populate("course")
-    .sort({ createdAt: -1 })
-    .limit(10);
+  const [docs, total] = await Promise.all([
+    DocumentFile.find(filter)
+      .populate("course")
+      .sort({ createdAt: -1 })
+      .limit(MAX_SEARCH_RESULTS),
+    DocumentFile.countDocuments(filter),
+  ]);
 
   return {
     found: docs.length > 0,
     count: docs.length,
+    total,
     documents: docs.map((d) => ({
       id: d._id.toString(),
       title: d.title,
@@ -1087,7 +1103,7 @@ export async function executeTool(
   switch (name) {
     case "search_course_materials":
       return searchCourseMaterials(
-        args as { courseCode?: string; topic?: string },
+        args as { courseCode?: string; topic?: string; category?: string },
       );
     case "get_document_link":
       return getDocumentLink(args as { documentId: string });

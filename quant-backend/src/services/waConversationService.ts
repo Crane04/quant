@@ -44,6 +44,7 @@ import { logger } from "../utils/logger";
 import { env } from "../config/env";
 import * as fmt from "./waFormatter";
 import { finalizeSuggestions, suggestionsForTool } from "./waSuggestions";
+import { handleDocPickerReply, PickerDoc, sendDocPicker } from "./waDocPicker";
 
 const MAX_TOOL_ITERATIONS = 5;
 
@@ -72,9 +73,10 @@ Use the available tools to answer instead of guessing — never invent course ma
 deadlines, or timetable info. If a tool returns no results, say so plainly rather than making
 something up.
 
-When search_course_materials returns multiple documents, list them briefly (title + category)
-and ask which one they want before calling get_document_link — unless there's exactly one
-obvious match, in which case just send it directly. get_document_link delivers the actual PDF
+If the student asks for a particular kind of material (past questions, lecture notes, exam
+summaries), pass it as search_course_materials' category. When a search matches several documents,
+the student is shown a tappable list of all of them automatically and picks one there — when it
+matches exactly one, send it with get_document_link directly. get_document_link delivers the actual PDF
 as a WhatsApp file attachment automatically — never write out a link or URL yourself, just
 briefly confirm you're sending it (e.g. "Here's the MEE 305 note!").
 
@@ -316,13 +318,18 @@ async function sendMainMenu(
   }
 }
 
+/**
+ * `replyId` is the id of the tapped button/list row, when the message is one —
+ * lets a tap act on exactly what was shown rather than on its (truncated) title.
+ */
 export function processIncomingMessage(
   from: string,
   body: string,
+  replyId?: string,
 ): Promise<void> {
   return enqueue(
     from,
-    () => processIncomingMessageInner(from, body),
+    () => processIncomingMessageInner(from, body, replyId),
     "WhatsApp message processing failed",
   );
 }
@@ -330,6 +337,7 @@ export function processIncomingMessage(
 async function processIncomingMessageInner(
   from: string,
   body: string,
+  replyId?: string,
 ): Promise<void> {
   const input = body.trim();
   if (!input) return;
@@ -427,6 +435,10 @@ async function processIncomingMessageInner(
     // outdated preview. Falls through to the normal flow below.
     setWaSession(from, "IDLE", { pendingBroadcast: undefined });
   }
+
+  // A tap on the document picker (see sendDocPicker) — sends that exact file,
+  // free, with no LLM call: the row already says which document it is.
+  if (replyId && (await handleDocPickerReply(from, replyId))) return;
 
   // Fast, free greeting/reset — no LLM call needed, and fully deterministic
   // (not left to the model's judgment, which turned out to be unreliable at
@@ -677,6 +689,29 @@ async function runAgent(
               "Couldn't draft that broadcast — only HOCs can send one.";
           }
           break outer;
+        }
+
+        // Terminal when there are several matches: the student picks from a list
+        // of every match instead of the model trying to fit them into 3 buttons.
+        if (call.function.name === "search_course_materials") {
+          const r = result as { total?: number; documents?: PickerDoc[] };
+          if (r.documents && r.documents.length > 1) {
+            try {
+              finalReply = await sendDocPicker(
+                from,
+                r.documents,
+                r.total ?? r.documents.length,
+              );
+              sentViaButtons = true;
+              break outer;
+            } catch (err) {
+              // Fall back to letting the model answer from the result as before.
+              logger.error("Failed to send document picker, falling back to agent", {
+                to: from,
+                error: err instanceof Error ? err.message : "unknown",
+              });
+            }
+          }
         }
 
         suggestions.push(
